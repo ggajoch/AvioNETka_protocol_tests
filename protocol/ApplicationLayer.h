@@ -28,7 +28,10 @@ public:
             descriptors[i]->id = i;
             printf("assigning ID %d\n", i);
         }
-        sendSubscriptions();
+        //sendSubscriptions();
+    }
+    void _sendSubscriptions() {
+        this->sendSubscriptions();
     }
 
     template<typename T>
@@ -47,12 +50,20 @@ public:
     }
 
     bool ackRequired(uint8_t id) {
-        printf("ACK id = %d? -> %d\n", id, (id<descriptors_length)?descriptors[id]->ack:false);
+        bool res = false;
         if (id < descriptors_length) {
-            return descriptors[id]->ack;
+            res = descriptors[id]->ack;
         } else {
-            return false;
+            switch(id) {
+                case 251:
+                    res = true;
+                    break;
+                default:
+                    res = false;
+            }
         }
+        printf("ACK id = %d? -> %d\n", id, res);
+        return res;
     }
 };
 

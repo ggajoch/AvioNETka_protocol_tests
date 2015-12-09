@@ -47,15 +47,13 @@ public:
         printf("[network] sending (id = %d): ", data.id);
         print_byte_table(data.data, data.len);
 
-        if( data.id < 200 )
-            waitForACK();
         if( app->ackRequired(data.id) ) {
             printf("transmitting and waiting for ack\n");
             xSemaphoreTake(ACKSemaphore, portMAX_DELAY);
-        }
-        sender.sendData(data);
-        if( app->ackRequired(data.id) ) {
+            sender.sendData(data);
             waitForACK();
+        } else {
+            sender.sendData(data);
         }
     }
     void dataReceived(NetworkDataStruct data) {

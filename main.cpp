@@ -23,7 +23,7 @@ void secondCall(float x) {
 }
 FloatDataDescriptor data2({2, true}, secondCall);
 
-FloatDataDescriptor data3({2, false});
+FloatDataDescriptor data3({2, true});
 
 
 xQueueHandle RxQueue, TxQueue;
@@ -36,6 +36,7 @@ class FreeRTOSMock : public PHYInterface {
     }
 public:
     void mockData(PHYDataStruct * data) {
+        printf("MOCKING DATA\n");
         net->dataReceived(*data);
     }
 };
@@ -48,20 +49,18 @@ void taskTx(void * p) {
     while(1) {
         PHYDataStruct data;
         xQueueReceive(TxQueue, &data, portMAX_DELAY);
+        printf("[RTOS] checking packet: %d\n", app->ackRequired(data.data[0]));
 
-        printf("[RTOS] sending data\n");
-
-        if( data.data[0] < 200 ) {
-            if( app->ackRequired(data.data[0]) ) {
-                //send ACK
-                NetworkDataStruct ack = makeACKPacket();
-                PHYDataStruct ph;
-                ph.append(ack.id);
-                ph.append(ack.data, ack.len);
-                xQueueSend(RxQueue, &ph, portMAX_DELAY);
-            }
-            xQueueSend(RxQueue, &data, portMAX_DELAY);
+        if( app->ackRequired(data.data[0]) ) {
+            printf("[RTOS] sending ACK\n");
+            //send ACK
+            NetworkDataStruct ack = makeACKPacket();
+            PHYDataStruct ph;
+            ph.append(ack.id);
+            ph.append(ack.data, ack.len);
+            xQueueSend(RxQueue, &ph, portMAX_DELAY);
         }
+        xQueueSend(RxQueue, &data, portMAX_DELAY);
     }
 }
 
@@ -71,8 +70,7 @@ void taskRx(void * p) {
         PHYDataStruct data;
         xQueueReceive(RxQueue, &data, portMAX_DELAY);
         printf("[RTOS] receiving packet!!!\n");
-        vTaskDelay(100);
-        printf("[RTOS] XXXXXXXXXX!!!\n");
+        vTaskDelay(1000);
         PHYFree.mockData(&data);
     }
 }
@@ -81,6 +79,7 @@ void starter(void * p) {
     DataDescriptor * descriptors[] = {&data, &data2, &data3};
     ApplicationLayer appX(&PHYFree, descriptors, 3);
     app = &appX;
+    app->_sendSubscriptions();
     while(1) {
         vTaskDelay(portMAX_DELAY);
     }
@@ -93,6 +92,7 @@ void test(void * p) {
 
     app->sendData(data2, 1.5f);
     while(1) {
+        printf("\n\n\n---------------------------------\n\n\n");
         app->sendData(data2, 1.5f);
         vTaskDelay(5000);
     }
@@ -103,7 +103,7 @@ int main() {
     RxQueue = xQueueCreate(100, sizeof(DataDescriptor));
     TxQueue = xQueueCreate(100, sizeof(DataDescriptor));
 
-    xTaskCreate(taskRx, "Rx", 1000, NULL, 3, NULL);
+    xTaskCreate(taskRx, "Rx", 1000, NULL, 5, NULL);
     xTaskCreate(taskTx, "Rx", 1000, NULL, 2, NULL);
     xTaskCreate(starter, "st", 1000, NULL, 4, NULL);
     xTaskCreate(test, "ts", 1000, NULL, 1, NULL);
