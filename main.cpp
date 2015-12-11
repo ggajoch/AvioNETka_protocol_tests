@@ -60,7 +60,11 @@ void taskTx(void * p) {
             ph.append(ack.data, ack.len);
             xQueueSend(RxQueue, &ph, portMAX_DELAY);
         }
-        xQueueSend(RxQueue, &data, portMAX_DELAY);
+        if( data.data[0] == 1 ) {
+            vTaskDelay(10000);
+            printf("\n\n\nLOOP BACK DATA!!!\n\n\n");
+            xQueueSend(RxQueue, &data, portMAX_DELAY);
+        }
     }
 }
 
@@ -94,7 +98,7 @@ void test(void * p) {
     while(1) {
         printf("\n\n\n---------------------------------\n\n\n");
         app->sendData(data2, 1.5f);
-        vTaskDelay(5000);
+        vTaskDelay(30000);
     }
     vTaskDelay(portMAX_DELAY);
 }
