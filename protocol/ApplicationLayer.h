@@ -22,16 +22,19 @@ class ApplicationLayer : public ApplicationLayerInterface {
     }
 
 public:
+    xSemaphoreHandle link_established;
+
+
     ApplicationLayer(PHYInterface *phy, DataDescriptor **table, uint8_t len) :
             net(this, phy), descriptors(table), descriptors_length(len) {
+
+        link_established = xSemaphoreCreateBinary();
+        xSemaphoreTake(link_established, 0);
+
         for (uint8_t i = 0; i < len; ++i) {
             descriptors[i]->id = i;
             printf("assigning ID %d\n", i);
         }
-        //sendSubscriptions();
-    }
-    void _sendSubscriptions() {
-        this->sendSubscriptions();
     }
 
     template<typename T>
@@ -46,6 +49,11 @@ public:
             dataTypeUnion value;
             memcpy(value.bytes, data.data, data.len);
             descriptors[data.id]->callback(value);
+        } else {
+            if( data.id == 252 ) { //[TODO]: remove magic number
+                this->sendSubscriptions();
+                xSemaphoreGive(link_established);
+            }
         }
     }
 
@@ -56,6 +64,7 @@ public:
         } else {
             switch(id) {
                 case 251:
+                case 252:
                     res = true;
                     break;
                 default:
