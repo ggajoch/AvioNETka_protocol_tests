@@ -39,8 +39,10 @@ public:
     }
     void waitForACK() {
         printf("ACK waiting\n");
+        portENTER_CRITICAL();
         xSemaphoreTake(ACKSemaphore, portMAX_DELAY);
         xSemaphoreGive(ACKSemaphore);
+        portEXIT_CRITICAL();
         printf("ACK got!\n");
     }
     void sendData(NetworkDataStruct data) {
