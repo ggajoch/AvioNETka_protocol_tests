@@ -115,7 +115,7 @@ public:
 
 	void callback(dataTypeUnion);
 
-	dataTypeUnion pack(type value);
+	dataTypeUnion pack(const type value) const;
 };
 
 
@@ -125,7 +125,7 @@ public:
 		call(x.asType);		                                	    \
 	}		                                                    	\
 	template<>		                                                \
-	dataTypeUnion TypedDataDescriptor<type>::pack(type value) {		\
+	dataTypeUnion TypedDataDescriptor<type>::pack(const type value) const {		\
 		dataTypeUnion box;			                        		\
 		box.asType = value;		                                	\
 		return box;		                                			\

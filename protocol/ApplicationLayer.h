@@ -38,7 +38,7 @@ public:
     }
 
     template<typename T>
-    void sendData(T data, typename T::type value) {
+    void sendData(const T & data, typename T::type value) {
         dataTypeUnion packedData = data.pack(value);
         NetworkDataStruct netData(data.id, packedData.bytes, T::length);
         net.sendData(netData);
