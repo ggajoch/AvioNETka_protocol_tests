@@ -26,7 +26,9 @@ s.listen(1)
 
 conn, addr = s.accept()
 
+
 def receiver():
+    loss = 3
     while 1:
         string = conn.recv(BUFFER_SIZE)
         if not string: break
@@ -35,7 +37,12 @@ def receiver():
 
 
         id = data[0]
-        if ackRequired(id):
+        #if ackRequired(id):
+
+        loss -= 1
+        if loss == 0:
+            loss = 3
+        else:           
             arr = [0xfa]
             send(arr)
 
@@ -48,6 +55,6 @@ t = Timer(0.01, receiver)
 t.start()
 
 #sleep(4)
-send([252])
+#send([252])
 
 print 'Connection address:', addr
