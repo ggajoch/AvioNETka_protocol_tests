@@ -147,6 +147,7 @@ void TaskMockPC(void * p) {
         } else {
             printf("connection failed %d\n", res);
         }
+        vTaskDelay(10);
         /*PHYDataStruct data;
         if (xQueueReceive(TxQueue, &data, portMAX_DELAY)) {
             //data received from module
@@ -168,17 +169,19 @@ void TaskMockPC(void * p) {
     }
 }
 
+xSemaphoreHandle unlockTest;
 void starter(void * p) {
     DataDescriptor * descriptors[] = {&data, &data2, &data3};
     ApplicationLayer appX(&PHYFree, descriptors, 3);
     app = &appX;
 
-    /*printf("Hello!!!\n");
+    printf("Hello!!!\n");
     PHYDataStruct data;
     data.data[0] = 252;
     data.len = 1;
-    PHYFree.mockData(&data);*/
+    PHYFree.mockData(&data);
 
+    xSemaphoreGive(unlockTest);
     xSemaphoreHandle x = xSemaphoreCreateBinary();
     xSemaphoreTake(x, 0);
     while(1) {
@@ -187,10 +190,9 @@ void starter(void * p) {
 }
 
 void test(void * p) {
-    portENTER_CRITICAL();
-    xSemaphoreTake(app->link_established, portMAX_DELAY);
-    xSemaphoreGive(app->link_established);
-    portEXIT_CRITICAL();
+//    xSemaphoreTake(app->link_established, portMAX_DELAY);
+//    xSemaphoreGive(app->link_established);
+    xSemaphoreTake(unlockTest, portMAX_DELAY);
 
     app->sendData(data, false);
 
@@ -208,6 +210,8 @@ void test(void * p) {
 
 
 int main() {
+    unlockTest = xSemaphoreCreateBinary();
+    xSemaphoreTake(unlockTest, 0);
     initSocket();
     BytesSent = send(SendingSocket, sendbuf, strlen(sendbuf), 0);
 
@@ -215,9 +219,9 @@ int main() {
     RxQueue = xQueueCreate(100, sizeof(DataDescriptor));
     TxQueue = xQueueCreate(100, sizeof(DataDescriptor));
 
-    xTaskCreate(TaskMockPC, "Rx", 1000, NULL, 3, NULL);
-    xTaskCreate(starter, "st", 1000, NULL, 4, NULL);
-    xTaskCreate(test, "ts", 1000, NULL, 1, NULL);
+    xTaskCreate(TaskMockPC, "Rx", 1000, NULL, 2, NULL);
+    xTaskCreate(starter, "st", 1000, NULL, 2, NULL);
+    xTaskCreate(test, "ts", 1000, NULL, 2, NULL);
 
     vTaskStartScheduler();
 
