@@ -58,16 +58,18 @@ public:
         if( app->ackRequired(data.id) ) {
             for(uint8_t i = 0; i < 3; ++i) {
                 printf("transmitting and waiting for ack\n");
-                //xSemaphoreTake(ACKSemaphore, 0);
+                xSemaphoreTake(ACKSemaphore, 0);
 
                 sender.sendData(data);
-                //bool res = xSemaphoreTake(ACKSemaphore, 1000);
-                bool res = xEventGroupWaitBits(link_state, 1, true, true, 0);
-                xEventGroupClearBits(link_state, 0x1);
+                bool res = xSemaphoreTake(ACKSemaphore, 1000);
+//                bool res = xEventGroupWaitBits(link_state, 1, true, true, 0);
+//                xEventGroupClearBits(link_state, 0x1);
                 res &= 0x1;
                 if( res ) {
                     printf("ACK got!\n");
                     break;
+                } else {
+                    printf("PACKET LOSS!!!!\n");
                 }
                 /*if( waitForACK(1000) ) {
                     break;
@@ -85,8 +87,8 @@ public:
         if( data.id == ACK_ID ) {
             printf("got ACK packet!\n");
             //ackgot = true;
-            //xSemaphoreGive(ACKSemaphore);
-            xEventGroupSetBits(link_state, 1);
+            xSemaphoreGive(ACKSemaphore);
+//            xEventGroupSetBits(link_state, 1);
         }
         if( app->ackRequired(data.id) ) {
             printf("sending ACK!\n");
