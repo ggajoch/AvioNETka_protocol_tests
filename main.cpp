@@ -86,11 +86,7 @@ int initSocket() {
 }
 
 
-extern "C" {
-#include <FreeRTOS.h>
-#include <queue.h>
-#include <task.h>
-}
+#include "++FreeRTOS.h"
 
 using namespace std;
 
@@ -108,14 +104,21 @@ FloatDataDescriptor data2({2, true}, secondCall);
 FloatDataDescriptor data3({2, false});
 
 
-xQueueHandle RxQueue, TxQueue;
+using namespace FreeRTOS;
+Queue<DataDescriptor> RxQueue(100), TxQueue(100);
+
 class FreeRTOSMock : public PHYInterface {
     void sendPacket(PHYDataStruct & data) {
+        static uint8_t buffer[100];
+        uint16_t address = 2;
+        memcpy(buffer, &address, 2);
+        memcpy(buffer+2, data.data, data.len);
+
         printf("[RTOS] data receiving from module: ");
         print_byte_table(data.data, data.len);
 
-//        xQueueSend(TxQueue, &data, portMAX_DELAY);
-        BytesSent = send(SendingSocket, (char*)data.data, data.len, 0);
+        BytesSent = send(SendingSocket, (char*)buffer, data.len+2, 0);
+        context::delay(100);
     }
 public:
     void mockData(PHYDataStruct * data) {
@@ -140,36 +143,18 @@ void TaskMockPC(void * p) {
             printf("[TCP] received: ");
             print_byte_table(recvBuf, res);
             PHYDataStruct data;
-            memcpy(data.data, recvBuf, res);
-            data.len = res;
+            memcpy(data.data, recvBuf+2, res-2);
+            data.len = res-2;
             PHYFree.mockData(&data);
             printf("[TCP] Processed!\n");
         } else {
             printf("connection failed %d\n", res);
         }
         vTaskDelay(10);
-        /*PHYDataStruct data;
-        if (xQueueReceive(TxQueue, &data, portMAX_DELAY)) {
-            //data received from module
-            printf("[MOCK]: data received!: ");
-            print_byte_table(data.data, data.len);
-            if (app->ackRequired(data.data[0])) {
-                //send ACK
-                printf("[MOCK] Sending ACK\n");
-                //vTaskDelay(100);
-                printf("[MOCK] Wait end\n");
-                NetworkDataStruct ack = makeACKPacket();
-                PHYDataStruct ph;
-                ph.append(ack.id);
-                ph.append(ack.data, ack.len);
-                PHYFree.mockData(&ph);
-            }
-        }*/
-        //vTaskDelay(1);
     }
 }
 
-xSemaphoreHandle unlockTest;
+Semaphore unlockTest;
 void starter(void * p) {
     DataDescriptor * descriptors[] = {&data, &data2, &data3};
     ApplicationLayer appX(&PHYFree, descriptors, 3);
@@ -181,50 +166,41 @@ void starter(void * p) {
     data.len = 1;
     PHYFree.mockData(&data);
 
-    xSemaphoreGive(unlockTest);
-    xSemaphoreHandle x = xSemaphoreCreateBinary();
-    xSemaphoreTake(x, 0);
+    unlockTest.give();
     while(1) {
-        xSemaphoreTake(x, portMAX_DELAY);
+        context::delay(portMAX_DELAY);
     }
 }
 
 void test(void * p) {
-//    xSemaphoreTake(app->link_established, portMAX_DELAY);
-//    xSemaphoreGive(app->link_established);
-    xSemaphoreTake(unlockTest, portMAX_DELAY);
+    unlockTest.take();
 
-    app->sendData(data, false);
+//    app->sendData(data, false);
 
-    app->sendData(data, true);
+//    app->sendData(data, true);
+//
+//    app->sendData(data2, 1.5f);
 
-    app->sendData(data2, 1.5f);
+    float x = 0;
     while(1) {
-        app->sendData(data2, 1.5f);
+        app->sendData(data2, x);
+        x += 1.5;
         printf("---------------------------\n\n");
         vTaskDelay(2000);
     }
-    vTaskDelay(portMAX_DELAY);
 }
 
 
 
 int main() {
-    unlockTest = xSemaphoreCreateBinary();
-    xSemaphoreTake(unlockTest, 0);
     initSocket();
-    BytesSent = send(SendingSocket, sendbuf, strlen(sendbuf), 0);
+//    BytesSent = send(SendingSocket, sendbuf, strlen(sendbuf), 0);
 
+    Task::create(TaskMockPC, "Rx", 1000, 2);
+    Task::create(starter, "st", 1000, 2);
+    Task::create(test, "test", 1000, 2);
 
-    RxQueue = xQueueCreate(100, sizeof(DataDescriptor));
-    TxQueue = xQueueCreate(100, sizeof(DataDescriptor));
-
-    xTaskCreate(TaskMockPC, "Rx", 1000, NULL, 2, NULL);
-    xTaskCreate(starter, "st", 1000, NULL, 2, NULL);
-    xTaskCreate(test, "ts", 1000, NULL, 2, NULL);
-
-    vTaskStartScheduler();
-
+    control::startScheduler();
 
     return 0;
 }
