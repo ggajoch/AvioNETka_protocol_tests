@@ -56,14 +56,14 @@ namespace FreeRTOS {
         }
     };
 
-    class CountingSemaphore : SemaphoreGeneric {
+    class CountingSemaphore : public SemaphoreGeneric {
     public:
         CountingSemaphore(uint32_t maxCount = portMAX_DELAY, uint32_t initialCount = 0) {
             handle = xSemaphoreCreateCounting(maxCount, initialCount);
         }
     };
 
-    class Mutex : SemaphoreGeneric {
+    class Mutex : public SemaphoreGeneric {
     public:
         Mutex() {
             handle = xSemaphoreCreateMutex();

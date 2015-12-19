@@ -34,7 +34,7 @@ class TCP:
         # data.extend(encode_float(p.data))
         data.extend(p.dataRaw)
 
-        print "sending data!", p
+        print "sending data! ", data
         self.conn.send("".join([chr(i) for i in data]))
         import time
         time.sleep(0.1)

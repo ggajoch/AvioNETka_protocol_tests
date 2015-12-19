@@ -4,6 +4,12 @@ def table_to_string(table):
         s += chr(i)
     return s
 
+def string_to_table(string):
+    t = []
+    for i in string:
+        t.append(ord(i))
+    return t
+
 
 def parse_int32(payload):
     import struct
@@ -29,7 +35,7 @@ def parse_float(payload):
 def encode_float(value):
     import struct
     x = struct.pack("f", value)
-    return x
+    return string_to_table(x)
 
 
 def parse_null(payload):

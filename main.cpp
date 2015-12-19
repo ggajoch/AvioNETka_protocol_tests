@@ -101,7 +101,7 @@ void secondCall(float x) {
 }
 FloatDataDescriptor data2({2, true}, secondCall);
 
-FloatDataDescriptor data3({2, false});
+FloatDataDescriptor data3({2, true});
 
 
 using namespace FreeRTOS;
@@ -115,10 +115,10 @@ class FreeRTOSMock : public PHYInterface {
         memcpy(buffer+2, data.data, data.len);
 
         printf("[RTOS] data receiving from module: ");
-        print_byte_table(data.data, data.len);
+        print_byte_table(buffer, data.len+2);
 
         BytesSent = send(SendingSocket, (char*)buffer, data.len+2, 0);
-        context::delay(100);
+        context::delay(10);
     }
 public:
     void mockData(PHYDataStruct * data) {

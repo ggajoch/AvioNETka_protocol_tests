@@ -21,19 +21,23 @@ class SimNode:
         if not self.modules.has_key(packet.address):
             # first packet from module, add module to list
             self.modules[packet.address] = Module(packet.address)
-
         self.modules[packet.address].subscriptions[idd] = s
 
     def parse_data(self, packet):
-        sub = self.modules[packet.address].subscriptions[packet.id]
-        packet.data = sub.parser(packet.dataRaw)
-        print "got data! (%d %d) -> %d = %f" %(packet.address, packet.id, sub.fsxID, packet.data)
-        import sim
-        sim.set_value(sub.fsxID, packet.data)
+        try:
+            sub = self.modules[packet.address].subscriptions[packet.id]
+            packet.data = sub.parser(packet.dataRaw)
+            print "got data! (%d %d) -> %d = %f" % (packet.address, packet.id, sub.fsxID, packet.data)
+            import sim
+            sim.set_value(sub.fsxID, packet.data)
+        except Exception, e:
+            print "packet not registered!"
+            print packet
+            print "Exception: ", e
 
     def update_data(self):
-        for module in self.modules:
-            for sub in module.subscriptions:
+        for module in self.modules.values():
+            for sub in module.subscriptions.values():
                 import sim
                 val = sim.get_value(sub.fsxID)
                 if val != sub.prevData:
@@ -44,9 +48,6 @@ class SimNode:
                     p.data = val
                     p.dataRaw = encode_float(p.data)
                     self.network.send_packet(p)
-                    #send(p)
-
-
 
     def parse_packet(self, packet):
         if packet.id == 251:
@@ -62,12 +63,11 @@ class Module:
 
 
 class Subscription:
-    def __init__(self, addr, id, fsxID, ackNeeded, txEnabled, parser):
+    def __init__(self, addr, data_id, fsxID, ackNeeded, txEnabled, parser):
         self.address = addr
-        self.id = id
+        self.id = data_id
         self.fsxID = fsxID
         self.ackNeeded = ackNeeded
         self.txEnabled = txEnabled
         self.parser = parser
         self.prevData = None
-
