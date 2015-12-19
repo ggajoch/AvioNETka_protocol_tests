@@ -4,8 +4,9 @@ from packet import *
 
 
 class SimNode:
-    def __init__(self):
+    def __init__(self, network):
         self.modules = {}
+        self.network = network
 
     def parse_subscription(self, packet):
         addr = packet.address
@@ -27,11 +28,12 @@ class SimNode:
         sub = self.modules[packet.address].subscriptions[packet.id]
         packet.data = sub.parser(packet.dataRaw)
         print "got data! (%d %d) -> %d = %f" %(packet.address, packet.id, sub.fsxID, packet.data)
+        import sim
+        sim.set_value(sub.fsxID, packet.data)
 
     def update_data(self):
         for module in self.modules:
             for sub in module.subscriptions:
-                #val = get()
                 import sim
                 val = sim.get_value(sub.fsxID)
                 if val != sub.prevData:
@@ -41,7 +43,9 @@ class SimNode:
                     p.id = sub.id
                     p.data = val
                     p.dataRaw = encode_float(p.data)
+                    self.network.send_packet(p)
                     #send(p)
+
 
 
     def parse_packet(self, packet):
