@@ -14,56 +14,54 @@ extern "C" {
 
 #include <event_groups.h>
 #include "PhysicalLayer.h"
-#include "NetworkSender.h"
-#include "NetworkReceiver.h"
 #include "ProtocolPackets.h"
 
-class ApplicationLayerInterface {
-public:
-    virtual void dataReceived(NetworkDataStruct) = 0;
-    virtual bool ackRequired(uint8_t id) = 0;
-};
 
-class NetworkLayer : public NetworkRcvInterface {
-    ApplicationLayerInterface * app;
-    PHYInterface * phy;
-    NetworkSender sender;
-    NetworkReceiver receiver;
-    volatile bool ackgot = true;
+class NetworkLayer : public NETInterface {
+    PHYInterface * phyInterface;
+    FSXInterface * fsxInterface;
     SemaphoreHandle_t ACKSemaphore;
-    EventGroupHandle_t link_state;
 public:
-    NetworkLayer(ApplicationLayerInterface *app, PHYInterface *phy) :
-            app(app), phy(phy), sender(phy), receiver(this) {
-        phy->attachNetwork(&receiver);
+    NetworkLayer() {
         ACKSemaphore = xSemaphoreCreateBinary();
-        link_state = xEventGroupCreate();
-        xEventGroupClearBits(link_state, 0x1);
-        xSemaphoreGive(ACKSemaphore);
-        printf("created network node\n");
     }
-    bool waitForACK(const uint32_t tickToWait) {
-        printf("ACK waiting\n");
-        bool res = xSemaphoreTake(ACKSemaphore, tickToWait);
-        if( res ) {
-            xSemaphoreGive(ACKSemaphore);
-            printf("ACK got!\n");
-        }
-        return res;
+
+    void registerLowerLayer(PHYInterface * phyInterface) {
+        this->phyInterface = phyInterface;
     }
-    void sendData(NetworkDataStruct data) {
-        printf("[network] sending (id = %d): ", data.id);
+
+    void registerUpperLayer(FSXInterface * fsxInterface) {
+        this->fsxInterface = fsxInterface;
+    }
+
+//    bool waitForACK(const uint32_t tickToWait) {
+//        printf("ACK waiting\n");
+//        bool res = xSemaphoreTake(ACKSemaphore, tickToWait);
+//        if( res ) {
+//            xSemaphoreGive(ACKSemaphore);
+//            printf("ACK got!\n");
+//        }
+//        return res;
+//    }
+
+    void sendData(const NETDataStruct & data) {
+        PHYDataStruct phyData;
+        phyData.append(data.command);
+        phyData.append(data.data, data.len);
+        phyInterface->passDown(phyData);
+    }
+
+    virtual void passDown(const NETDataStruct & data) {
+        printf("[network] sending (id = %d): ", data.command);
         print_byte_table(data.data, data.len);
 
-        if( app->ackRequired(data.id) ) {
+        if( this->descriptors->at(data.command).ack ) {
             for(uint8_t i = 0; i < 3; ++i) {
                 printf("transmitting and waiting for ack\n");
                 xSemaphoreTake(ACKSemaphore, 0);
 
-                sender.sendData(data);
+                sendData(data);
                 bool res = xSemaphoreTake(ACKSemaphore, 1000);
-//                bool res = xEventGroupWaitBits(link_state, 1, true, true, 0);
-//                xEventGroupClearBits(link_state, 0x1);
                 res &= 0x1;
                 if( res ) {
                     printf("ACK got!\n");
@@ -71,34 +69,28 @@ public:
                 } else {
                     printf("PACKET LOSS!!!!\n");
                 }
-                /*if( waitForACK(1000) ) {
-                    break;
-                } else {
-                    printf("PACKET LOSS!!!!\n");
-                }*/
             }
         } else {
-            sender.sendData(data);
+            sendData(data);
         }
     }
-    void dataReceived(NetworkDataStruct data) {
-        printf("[network] received (id = %d): ", data.id);
-        print_byte_table(data.data, data.len);
-        if( data.id == ACK_ID ) {
-            printf("got ACK packet!\n");
-            //ackgot = true;
-            xSemaphoreGive(ACKSemaphore);
-//            xEventGroupSetBits(link_state, 1);
-        }
-        if( app->ackRequired(data.id) ) {
-            printf("sending ACK!\n");
-            NetworkDataStruct val = makeACKPacket();
-            sender.sendData(val);
-        }
-        app->dataReceived(data);
-    }
-    static void linkManagementTask(void * ptr) {
 
+
+    virtual void passUp(const PHYDataStruct & data) {
+        NETDataStruct netData(data.data[0], data.data+1, data.len-1);
+        printf("[network] received (id = %d): ", netData.command);
+        print_byte_table(netData.data, netData.len);
+        if(netData.command == ACK_ID ) {
+            printf("got ACK packet!\n");
+            xSemaphoreGive(ACKSemaphore);
+        }
+        if( this->descriptors->at(netData.command).ack ) {
+            printf("sending ACK!\n");
+            vTaskDelay(2000);
+            NETDataStruct val = makeACKPacket();
+            this->passDown(val);
+        }
+        fsxInterface->passUp(netData);
     }
 };
 

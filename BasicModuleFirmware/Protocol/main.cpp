@@ -1,6 +1,4 @@
 #include <iostream>
-#include <protocol/NetworkSender.h>
-#include <protocol/NetworkLayer.h>
 #include <protocol/ApplicationLayer.h>
 
 
@@ -80,9 +78,9 @@ int initSocket() {
     // the socket SendingSocket.
 
     // Some info on the receiver side...
-    getsockname(SendingSocket, (SOCKADDR *)&ServerAddr, (int *)sizeof(ServerAddr));
-    printf("Client: Receiver IP(s) used: %s\n", inet_ntoa(ServerAddr.sin_addr));
-    printf("Client: Receiver port used: %d\n", htons(ServerAddr.sin_port));
+//    getsockname(SendingSocket, (SOCKADDR *)&ServerAddr, (int *)sizeof(ServerAddr));
+//    printf("Client: Receiver IP(s) used: %s\n", inet_ntoa(ServerAddr.sin_addr));
+//    printf("Client: Receiver port used: %d\n", htons(ServerAddr.sin_port));
 }
 
 
@@ -105,38 +103,74 @@ FloatDataDescriptor data3({2, true});
 
 
 using namespace FreeRTOS;
-Queue<DataDescriptor> RxQueue(100), TxQueue(100);
 
-class FreeRTOSMock : public PHYInterface {
-    void sendPacket(PHYDataStruct & data) {
+class FreeRTOSMock : public PHYLayer {
+public:
+    void mockData(const PHYDataStruct & data) {
+        printf("[PHY] received data: ");
+        print_byte_table(data.data, data.len);
+        net->passUp(data);
+    }
+    virtual void passDown(const PHYDataStruct & data) {
         static uint8_t buffer[100];
-        uint16_t address = 2;
+        uint16_t address = 0xAAAA;
         memcpy(buffer, &address, 2);
         memcpy(buffer+2, data.data, data.len);
 
-        printf("[RTOS] data receiving from module: ");
+        printf("[TCP] sending data: ");
         print_byte_table(buffer, data.len+2);
 
         BytesSent = send(SendingSocket, (char*)buffer, data.len+2, 0);
         context::delay(10);
     }
-public:
-    void mockData(PHYDataStruct * data) {
-        printf("[RTOS] sending data to module: ");
-        print_byte_table(data->data, data->len);
-        net->dataReceived(*data);
-    }
 };
 
+class FSXLayer : public FSXInterface {
+    NETInterface * netInterface;
+public:
+    void registerLowerLayer(NETInterface * netInterface) {
+        this->netInterface = netInterface;
+    }
+    virtual void passUp(const NETDataStruct & data) {
+        printf("[FSX] Received: cmd = %d\n", data.command);
+        print_byte_table(data.data, data.len);
+    }
+    void mock(uint8_t command, uint32_t val) {
+        printf("[FSX] Sending: %d -> %d\n", command, val);
+        NETDataStruct netVal(command);
+        netVal.append(val);
+        this->netInterface->passDown(netVal);
+    }
+};
+FreeRTOSMock phy;
 
-ApplicationLayer * app;
-FreeRTOSMock PHYFree;
+void starter(void * p) {
 
+    NetworkLayer net;
+    FSXLayer fsx;
+
+    phy.registerUpperLayer(&net);
+    net.registerLowerLayer(&phy);
+    net.registerUpperLayer(&fsx);
+    fsx.registerLowerLayer(&net);
+
+    DataDescriptor tab[255];
+    tab[0] = data;
+    tab[1] = data2;
+    tab[2] = data3;
+    tab[250] = DataDescriptor({250, false});
+    DataDescriptorsTable desc(tab, sizeof(tab)/sizeof(tab[0]));
+    net.registerDataDescriptors(&desc);
+
+    fsx.mock(1, 1);
+    while(1) {
+        context::delay(portMAX_DELAY);
+    }
+}
 
 void TaskMockPC(void * p) {
     char recvBuf[100];
     while(1) {
-        printf("[TCP] testing");
         int res = recv(SendingSocket, recvBuf, 100, 0);
         if( res > 0 ) {
             recvBuf[res] = 0;
@@ -145,61 +179,23 @@ void TaskMockPC(void * p) {
             PHYDataStruct data;
             memcpy(data.data, recvBuf+2, res-2);
             data.len = res-2;
-            PHYFree.mockData(&data);
-            printf("[TCP] Processed!\n");
+            phy.mockData(data);
         } else {
             printf("connection failed %d\n", res);
+            vTaskDelay(1000);
         }
         vTaskDelay(10);
     }
 }
 
-Semaphore unlockTest;
-void starter(void * p) {
-    DataDescriptor * descriptors[] = {&data, &data2, &data3};
-    ApplicationLayer appX(&PHYFree, descriptors, 3);
-    app = &appX;
-
-    printf("Hello!!!\n");
-    PHYDataStruct data;
-    data.data[0] = 252;
-    data.len = 1;
-    PHYFree.mockData(&data);
-
-    unlockTest.give();
-    while(1) {
-        context::delay(portMAX_DELAY);
-    }
-}
-
-void test(void * p) {
-    unlockTest.take();
-
-//    app->sendData(data, false);
-
-//    app->sendData(data, true);
-//
-//    app->sendData(data2, 1.5f);
-
-    float x = 0;
-    while(1) {
-        app->sendData(data2, x);
-        x += 1.5;
-        printf("---------------------------\n\n");
-        vTaskDelay(2000);
-    }
-}
-
-
-
 int main() {
     initSocket();
 //    BytesSent = send(SendingSocket, sendbuf, strlen(sendbuf), 0);
 
-    Task::create(TaskMockPC, "Rx", 1000, 2);
+//    Task::create(TaskMockPC, "Rx", 1000, 2);
     Task::create(starter, "st", 1000, 2);
-    Task::create(test, "test", 1000, 2);
-
+    Task::create(TaskMockPC, "rx", 1000, 2);
+//
     control::startScheduler();
 
     return 0;

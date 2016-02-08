@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <array>
 
 static const uint8_t MAX_FRAME_SIZE = 8;
 
@@ -33,16 +34,16 @@ struct PHYDataStruct {
 
 const int MAX_PACKET_SIZE = MAX_FRAME_SIZE - 1;
 
-struct NetworkDataStruct {
-    const uint8_t id;
+struct NETDataStruct {
+    const uint8_t command;
     uint8_t data[MAX_PACKET_SIZE];
     uint8_t len;
-    NetworkDataStruct(const uint8_t id) : id(id), len(0) {
+    NETDataStruct(const uint8_t command) : command(command), len(0) {
 
     }
 
-    NetworkDataStruct(const uint8_t id, const uint8_t * const data, const uint8_t len) :
-            id(id), len(len) {
+    NETDataStruct(const uint8_t command, const uint8_t * const data, const uint8_t len) :
+			command(command), len(len) {
         memcpy(this->data, data, len);
     }
 
@@ -76,6 +77,11 @@ public:
 
 	typedef void type;
 
+    DataDescriptor() {
+        this->fsxId = 0;
+        this->ack = false;
+    }
+
     DataDescriptor(uint8_t FSXid, bool ack) {
         this->fsxId = FSXid;
         this->ack = ack;
@@ -84,6 +90,22 @@ public:
     virtual void callback(dataTypeUnion data) {
     }
 };
+
+
+class DataDescriptorsTable {
+public:
+    DataDescriptor * table;
+    uint8_t len;
+    DataDescriptorsTable() : table(0), len(0) {}
+	DataDescriptorsTable(DataDescriptor *table, uint8_t len) : table(table), len(len) { }
+    const DataDescriptor & at(const uint8_t index) const {
+        return table[index];
+    }
+    const DataDescriptor &operator[](const uint8_t index) const {
+        return table[index];
+    }
+};
+
 
 template<typename T>
 class TypedDataDescriptor : public DataDescriptor {

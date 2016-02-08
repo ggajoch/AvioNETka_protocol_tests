@@ -34,6 +34,7 @@
       <sourceFolder url="file://$MODULE_DIR$/protocol/NetworkReceiver.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/protocol/NetworkSender.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/protocol/PhysicalLayer.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/protocol/StackInterfaces.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/protocol/useful.h" isTestSource="false" />
     </content>
     <orderEntry type="inheritedJdk" />

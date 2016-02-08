@@ -16,7 +16,7 @@ find_library(LIBWMM winmm)
 find_library(LIBWINSOCK ws2_32)
 
 #set(SOURCE_FILES main.cpp PhysicalLayer.h useful.h ${FreeRTOSSrc} subscriber.h ApplicationLayer.h rudder.h DataDescriptor.h protocol/PhysicalLayer.h)
-set(SOURCE_FILES ${FreeRTOSSrc} ++FreeRTOS.h main.cpp protocol/PhysicalLayer.h protocol/useful.h protocol/NetworkReceiver.h protocol/DataStructs.h protocol/NetworkSender.h protocol/NetworkLayer.h protocol/ApplicationLayer.h)
+set(SOURCE_FILES ${FreeRTOSSrc} ++FreeRTOS.h main.cpp protocol/PhysicalLayer.h protocol/useful.h protocol/DataStructs.h protocol/NetworkLayer.h protocol/ApplicationLayer.h protocol/StackInterfaces.h)
 
 include_directories(FreeRTOS/include FreeRTOS/portable FreeRTOS/FreeRTOS-Plus-Trace/Include . )
 add_executable(protocol ${SOURCE_FILES})

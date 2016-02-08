@@ -10,7 +10,7 @@
 #include "DataStructs.h"
 #include "ProtocolPackets.h"
 
-class ApplicationLayer : public ApplicationLayerInterface {
+/*class ApplicationLayer : public ApplicationLayerInterface {
     NetworkLayer net;
     DataDescriptor **descriptors;
     uint8_t descriptors_length;
@@ -25,7 +25,7 @@ public:
     xSemaphoreHandle link_established;
 
 
-    ApplicationLayer(PHYInterface *phy, DataDescriptor **table, uint8_t len) :
+    ApplicationLayer(PHYLayer *phy, DataDescriptor **table, uint8_t len) :
             net(this, phy), descriptors(table), descriptors_length(len) {
 
         link_established = xSemaphoreCreateBinary();
@@ -40,17 +40,17 @@ public:
     template<typename T>
     void sendData(const T & data, typename T::type value) {
         dataTypeUnion packedData = data.pack(value);
-        NetworkDataStruct netData(data.id, packedData.bytes, T::length);
+        NETDataStruct netData(data.id, packedData.bytes, T::length);
         net.sendData(netData);
     }
 
-    void dataReceived(NetworkDataStruct data) {
-        if (data.id < descriptors_length) {
+    void dataReceived(NETDataStruct data) {
+        if (data.command < descriptors_length) {
             dataTypeUnion value;
             memcpy(value.bytes, data.data, data.len);
-            descriptors[data.id]->callback(value);
+            descriptors[data.command]->callback(value);
         } else {
-            if( data.id == 252 ) { //[TODO]: remove magic number
+            if(data.command == 252 ) { //[TODO]: remove magic number
                 this->sendSubscriptions();
                 xSemaphoreGive(link_established);
             }
@@ -74,7 +74,7 @@ public:
         printf("ACK id = %d? -> %d\n", id, res);
         return res;
     }
-};
+};*/
 
 
 #endif //PROTOCOL_APPLICATIONLAYER_H

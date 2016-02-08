@@ -9,14 +9,14 @@
 
 const int ACK_ID = 250;
 
-static NetworkDataStruct makeACKPacket() {
-    return NetworkDataStruct(ACK_ID, nullptr, 0);
+static NETDataStruct makeACKPacket() {
+    return NETDataStruct(ACK_ID, nullptr, 0);
 }
 
 const int SUBSCRIPTION_ID = 251;
 
-static NetworkDataStruct makeSubscriptionPacket(DataDescriptor *descriptor) {
-    NetworkDataStruct packet(SUBSCRIPTION_ID);
+static NETDataStruct makeSubscriptionPacket(DataDescriptor *descriptor) {
+    NETDataStruct packet(SUBSCRIPTION_ID);
     packet.append(descriptor->id);
     packet.append(descriptor->fsxId);
     packet.append(descriptor->ack);

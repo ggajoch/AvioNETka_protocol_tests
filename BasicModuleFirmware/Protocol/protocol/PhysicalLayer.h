@@ -6,23 +6,21 @@
 #include <string.h>
 
 #include "DataStructs.h"
-#include "NetworkReceiver.h"
 #include "useful.h"
+#include "StackInterfaces.h"
 
 
 
 
-
-class PHYInterface {
+class PHYLayer : public PHYInterface {
 protected:
-    NetworkReceiver * net = 0;
+    NETInterface *  net = 0;
 public:
-    PHYInterface() {}
-    PHYInterface(NetworkReceiver * net) : net(net) {}
-    void attachNetwork(NetworkReceiver * net) {
+    PHYLayer() {}
+    void registerUpperLayer(NETInterface * net) {
         this->net = net;
     }
-    virtual void sendPacket(PHYDataStruct & data) {
+    virtual void passDown(const PHYDataStruct & data) {
         printf("[phy] sending packet: ");
         print_byte_table(data.data, data.len);
     }
