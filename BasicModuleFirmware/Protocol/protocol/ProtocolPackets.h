@@ -5,8 +5,6 @@
 #ifndef PROTOCOL_PROTOCOLPACKETS_H
 #define PROTOCOL_PROTOCOLPACKETS_H
 
-#include "DataDescriptor.h"
-
 const int ACK_ID = 250;
 
 static NETDataStruct makeACKPacket() {

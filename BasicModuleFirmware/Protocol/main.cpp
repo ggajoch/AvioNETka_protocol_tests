@@ -169,6 +169,8 @@ void starter(void * p) {
     net.passDownRegistration(netDataStruct);
 
     fsx.mock(1, 1);
+
+//    vTaskEndScheduler();
     while(1) {
         context::delay(portMAX_DELAY);
     }
