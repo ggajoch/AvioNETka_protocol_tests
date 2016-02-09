@@ -159,8 +159,14 @@ void starter(void * p) {
     tab[1] = data2;
     tab[2] = data3;
     tab[250] = DataDescriptor({250, false});
+    tab[255] = DataDescriptor({255, false});
     DataDescriptorsTable desc(tab, sizeof(tab)/sizeof(tab[0]));
     net.registerDataDescriptors(&desc);
+
+    NETDataStruct netDataStruct(255);
+    netDataStruct.len = 0;
+    net.passDownRegistration(netDataStruct);
+    net.passDownRegistration(netDataStruct);
 
     fsx.mock(1, 1);
     while(1) {

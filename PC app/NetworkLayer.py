@@ -1,6 +1,5 @@
-import eventlet, threading
-import time
-
+import threading
+import time, sys
 from StackInterfaces import *
 from DataStructs import *
 
@@ -24,13 +23,13 @@ class NetworkDescriptor:
         val.data = False
         return val
 
+
 class NetworkDescriptors:
     def __init__(self):
-        self.map = \
-            {(43690, 1): NetworkDescriptor.data_command(True),
-             (43690, 2): NetworkDescriptor.data_command(True)}
+        self.map = {}
         self.systemCommands = \
-            {250: NetworkDescriptor.system_command(False)}
+            {250: NetworkDescriptor.system_command(False),
+             255: NetworkDescriptor.system_command(True)}
 
     def data_command(self, command):
         return not self.system_command(command)
@@ -73,17 +72,23 @@ class NetworkLayer(NETInterface):
 
         if packet.command == 250:
             print("[NET] Received ACK packet from ", data.address)
-            try:
+            if data.address in self.semACK:
                 self.semACK[data.address].release()
-            except:
+            else:
                 print("[NET] not waiting for ACK")
+        elif packet.command == 255:
+            data_id = packet.data[0]
+            ack = packet.data[-1]
+            print("[NET] registering new data_id (%d %d)" % (data.address, data_id))
+            desc = NetworkDescriptor.data_command(ack)
+            self.descriptors.set(data.address, data_id, desc)
 
         if descriptor.ack:
             print("[NET] sending ACK")
-            x = PHYDataStruct()
-            x.address = data.address
-            x.data = [250]
-            self.phy.passDown(x)
+            desc = PHYDataStruct()
+            desc.address = data.address
+            desc.data = [250]
+            self.phy.passDown(desc)
 
         if descriptor.data and self.fsx:
             self.fsx.passUp(packet)
@@ -100,19 +105,18 @@ class NetworkLayer(NETInterface):
             self.phy.passDown(frame)
             return
         while data.address in self.semACK:
-            import time
             time.sleep(0.01)  # quick workaround for waiting for a free line
 
-        self.semACK[data.address] = eventlet.semaphore.Semaphore()
-        self.semACK[data.address].acquire(timeout=0)
+        lock = threading.Lock()
+        lock.acquire(False)
+        self.semACK[data.address] = lock
         for i in range(1, 3):
             self.phy.passDown(frame)
-            print("Waiting for ACK from ", data.address)
-            import time
-            time.sleep(0.001)
-            if self.semACK[data.address].acquire(timeout=3):
-                print("GOT ACK")
-                break
-            print("TIMEOUT!!!")
-        self.semACK.pop(data.address)
+            print("[NET] Waiting for ACK from ", data.address)
 
+            if lock.acquire(True, 2):
+                print("[NET] GOT ACK from ", data.address)
+                break
+
+            print("[NET] TIMEOUT from ", data.address)
+        self.semACK.pop(data.address)

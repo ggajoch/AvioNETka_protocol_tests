@@ -162,3 +162,4 @@ TYPE_SPEC(uint16_t, asUint16, Uint16)
 TYPE_SPEC(uint32_t, asUint32, Uint32)
 
 #endif //PROTOCOL_DATASTRUCTS_H
+

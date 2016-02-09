@@ -21,8 +21,9 @@ class NetworkLayer : public NETInterface {
     PHYInterface * phyInterface;
     FSXInterface * fsxInterface;
     SemaphoreHandle_t ACKSemaphore;
+    uint8_t registered_commands;
 public:
-    NetworkLayer() {
+    NetworkLayer() : registered_commands(0) {
         ACKSemaphore = xSemaphoreCreateBinary();
     }
 
@@ -44,35 +45,50 @@ public:
 //        return res;
 //    }
 
-    void sendData(const NETDataStruct & data) {
-        PHYDataStruct phyData;
-        phyData.append(data.command);
-        phyData.append(data.data, data.len);
-        phyInterface->passDown(phyData);
+    void sendWithACK(const PHYDataStruct & data) {
+        for(uint8_t i = 0; i < 3; ++i) {
+            printf("transmitting and waiting for ack\n");
+            xSemaphoreTake(ACKSemaphore, 0);
+
+            phyInterface->passDown(data);
+            bool res = (bool) xSemaphoreTake(ACKSemaphore, 1000);
+            res &= 0x1;
+            if( res ) {
+                printf("ACK got!\n");
+                break;
+            } else {
+                printf("PACKET LOSS!!!!\n");
+            }
+        }
     }
 
     virtual void passDown(const NETDataStruct & data) {
         printf("[network] sending (id = %d): ", data.command);
         print_byte_table(data.data, data.len);
 
-        if( this->descriptors->at(data.command).ack ) {
-            for(uint8_t i = 0; i < 3; ++i) {
-                printf("transmitting and waiting for ack\n");
-                xSemaphoreTake(ACKSemaphore, 0);
+        PHYDataStruct phyData;
+        phyData.append(data.command);
+        phyData.append(data.data, data.len);
+        phyInterface->passDown(phyData);
 
-                sendData(data);
-                bool res = xSemaphoreTake(ACKSemaphore, 1000);
-                res &= 0x1;
-                if( res ) {
-                    printf("ACK got!\n");
-                    break;
-                } else {
-                    printf("PACKET LOSS!!!!\n");
-                }
-            }
+        if( this->descriptors->at(data.command).ack ) {
+            sendWithACK(phyData);
         } else {
-            sendData(data);
+            phyInterface->passDown(phyData);
         }
+    }
+
+    virtual void passDownRegistration(const NETDataStruct & data) {
+        printf("[network] sending  registration (id = %d): ", data.command);
+        print_byte_table(data.data, data.len);
+        PHYDataStruct phyData;
+        phyData.append(data.command);
+        phyData.append(registered_commands);
+        phyData.append(data.data, data.len);
+        phyData.append(descriptors->table[registered_commands].ack);
+
+        registered_commands++;
+        sendWithACK(phyData);
     }
 
 
@@ -86,7 +102,6 @@ public:
         }
         if( this->descriptors->at(netData.command).ack ) {
             printf("sending ACK!\n");
-            vTaskDelay(2000);
             NETDataStruct val = makeACKPacket();
             this->passDown(val);
         }
