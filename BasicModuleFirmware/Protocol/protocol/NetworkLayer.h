@@ -35,16 +35,6 @@ public:
         this->fsxInterface = fsxInterface;
     }
 
-//    bool waitForACK(const uint32_t tickToWait) {
-//        printf("ACK waiting\n");
-//        bool res = xSemaphoreTake(ACKSemaphore, tickToWait);
-//        if( res ) {
-//            xSemaphoreGive(ACKSemaphore);
-//            printf("ACK got!\n");
-//        }
-//        return res;
-//    }
-
     void sendWithACK(const PHYDataStruct & data) {
         for(uint8_t i = 0; i < 3; ++i) {
             printf("transmitting and waiting for ack\n");
