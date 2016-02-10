@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <array>
 
 static const uint8_t MAX_FRAME_SIZE = 8;
 
@@ -93,8 +92,8 @@ public:
 
 
 class DataDescriptorsTable {
-public:
     DataDescriptor * table;
+public:
     uint8_t len;
     DataDescriptorsTable() : table(0), len(0) {}
 	DataDescriptorsTable(DataDescriptor *table, uint8_t len) : table(table), len(len) { }
@@ -106,24 +105,38 @@ public:
     }
 };
 
+template<typename T>
+class TypeEncoding {
+public:
+    constexpr uint8_t get();
+};
+
+template<>
+constexpr uint8_t TypeEncoding<bool>::get() {
+    return 1;
+}
+
+template<>
+constexpr uint8_t TypeEncoding<uint8_t>::get() {
+    return 1;
+}
+
+
 
 template<typename T>
 class TypedDataDescriptor : public DataDescriptor {
 	void (*callbackFunction)(T);
-	
 public:
-
 	typedef T type;
-
-	static int const length = sizeof(type);
+	static const uint8_t length = sizeof(type);
 
     TypedDataDescriptor(DataDescriptor x) :
             DataDescriptor(x), callbackFunction(nullptr) {
 		this->rxEnabled = false;
 	}
 	
-    TypedDataDescriptor(DataDescriptor x, void (*callbackFunction)(type)) :
-            DataDescriptor(x),  callbackFunction(callbackFunction) {
+    TypedDataDescriptor(DataDescriptor x, void (*callback)(type)) :
+            DataDescriptor(x),  callbackFunction(callback) {
 		this->rxEnabled = true;
 	}
 
@@ -138,6 +151,7 @@ public:
 	void callback(dataTypeUnion);
 
 	dataTypeUnion pack(const type value) const;
+    const T & get(const dataTypeUnion & value) const;
 };
 
 
@@ -146,6 +160,10 @@ public:
 	void TypedDataDescriptor<type>::callback(dataTypeUnion x) {		\
 		call(x.asType);		                                	    \
 	}		                                                    	\
+    template<>                                                      \
+    const type & TypedDataDescriptor<type>::get(const dataTypeUnion & value) const {  \
+        return value.asType;                                        \
+    }                                                               \
 	template<>		                                                \
 	dataTypeUnion TypedDataDescriptor<type>::pack(const type value) const {		\
 		dataTypeUnion box;			                        		\

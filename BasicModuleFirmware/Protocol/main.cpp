@@ -1,5 +1,4 @@
 #include <iostream>
-#include <protocol/ApplicationLayer.h>
 
 
 #define WIN32_LEAN_AND_MEAN
@@ -104,7 +103,8 @@ FloatDataDescriptor data3({2, true});
 
 using namespace FreeRTOS;
 
-class FreeRTOSMock : public PHYLayer {
+
+class TCP_PHYLayer : public PHYLayer {
 public:
     void mockData(const PHYDataStruct & data) {
         printf("[PHY] received data: ");
@@ -124,6 +124,27 @@ public:
         context::delay(10);
     }
 };
+TCP_PHYLayer phy;
+
+void TCPReceiverTask(void *p) {
+    char recvBuf[100];
+    while(1) {
+        int res = recv(SendingSocket, recvBuf, 100, 0);
+        if( res > 0 ) {
+            recvBuf[res] = 0;
+            printf("[TCP] received: ");
+            print_byte_table(recvBuf, res);
+            PHYDataStruct data;
+            memcpy(data.data, recvBuf+2, res-2);
+            data.len = res-2;
+            phy.mockData(data);
+        } else {
+            printf("connection failed %d\n", res);
+            vTaskDelay(1000);
+        }
+        vTaskDelay(10);
+    }
+}
 
 class FSXLayer : public FSXInterface {
     NETInterface * netInterface;
@@ -142,7 +163,6 @@ public:
         this->netInterface->passDown(netVal);
     }
 };
-FreeRTOSMock phy;
 
 void starter(void * p) {
 
@@ -176,33 +196,14 @@ void starter(void * p) {
     }
 }
 
-void TaskMockPC(void * p) {
-    char recvBuf[100];
-    while(1) {
-        int res = recv(SendingSocket, recvBuf, 100, 0);
-        if( res > 0 ) {
-            recvBuf[res] = 0;
-            printf("[TCP] received: ");
-            print_byte_table(recvBuf, res);
-            PHYDataStruct data;
-            memcpy(data.data, recvBuf+2, res-2);
-            data.len = res-2;
-            phy.mockData(data);
-        } else {
-            printf("connection failed %d\n", res);
-            vTaskDelay(1000);
-        }
-        vTaskDelay(10);
-    }
-}
 
 int main() {
     initSocket();
 //    BytesSent = send(SendingSocket, sendbuf, strlen(sendbuf), 0);
 
-//    Task::create(TaskMockPC, "Rx", 1000, 2);
+//    Task::create(TCPReceiverTask, "Rx", 1000, 2);
     Task::create(starter, "st", 1000, 2);
-    Task::create(TaskMockPC, "rx", 1000, 2);
+    Task::create(TCPReceiverTask, "rx", 1000, 2);
 //
     control::startScheduler();
 

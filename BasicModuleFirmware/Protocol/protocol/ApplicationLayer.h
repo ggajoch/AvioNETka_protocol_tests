@@ -5,10 +5,6 @@
 #ifndef PROTOCOL_APPLICATIONLAYER_H
 #define PROTOCOL_APPLICATIONLAYER_H
 
-#include "NetworkLayer.h"
-#include "PhysicalLayer.h"
-#include "DataStructs.h"
-#include "ProtocolPackets.h"
 
 /*class ApplicationLayer : public ApplicationLayerInterface {
     NetworkLayer net;

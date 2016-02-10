@@ -5,37 +5,46 @@
 #ifndef PROTOCOL_NETWORKLAYER_H
 #define PROTOCOL_NETWORKLAYER_H
 
+#ifndef DEBUG
 extern "C" {
 #include <FreeRTOS.h>
 #include <semphr.h>
 #include <portmacro.h>
 #include <projdefs.h>
 };
+#endif
 
-#include <event_groups.h>
-#include "PhysicalLayer.h"
+#include "StackInterfaces.h"
+#include "DataStructs.h"
+#include "useful.h"
 #include "ProtocolPackets.h"
 
 
 class NetworkLayer : public NETInterface {
     PHYInterface * phyInterface;
-    FSXInterface * fsxInterface;
+    PresentationInterface * fsxInterface;
+    const DataDescriptorsTable * descriptors;
+#ifndef DEBUG
     SemaphoreHandle_t ACKSemaphore;
+#endif
     uint8_t registered_commands;
 public:
-    NetworkLayer() : registered_commands(0) {
+    NetworkLayer() : registered_commands(0), descriptors(0) {
+#ifndef DEBUG
         ACKSemaphore = xSemaphoreCreateBinary();
+#endif
     }
 
     void registerLowerLayer(PHYInterface * phyInterface) {
         this->phyInterface = phyInterface;
     }
 
-    void registerUpperLayer(FSXInterface * fsxInterface) {
+    void registerUpperLayer(PresentationInterface * fsxInterface) {
         this->fsxInterface = fsxInterface;
     }
 
     void sendWithACK(const PHYDataStruct & data) {
+#ifndef DEBUG
         for(uint8_t i = 0; i < 3; ++i) {
             printf("transmitting and waiting for ack\n");
             xSemaphoreTake(ACKSemaphore, 0);
@@ -50,6 +59,9 @@ public:
                 printf("PACKET LOSS!!!!\n");
             }
         }
+#else
+        phyInterface->passDown(data);
+#endif
     }
 
     virtual void passDown(const NETDataStruct & data) {
@@ -75,7 +87,7 @@ public:
         phyData.append(data.command);
         phyData.append(registered_commands);
         phyData.append(data.data, data.len);
-        phyData.append(descriptors->table[registered_commands].ack);
+        phyData.append(descriptors->at(registered_commands).ack);
 
         registered_commands++;
         sendWithACK(phyData);
@@ -88,7 +100,9 @@ public:
         print_byte_table(netData.data, netData.len);
         if(netData.command == ACK_ID ) {
             printf("got ACK packet!\n");
+#ifndef DEBUG
             xSemaphoreGive(ACKSemaphore);
+#endif
         }
         if( this->descriptors->at(netData.command).ack ) {
             printf("sending ACK!\n");
@@ -96,6 +110,10 @@ public:
             this->passDown(val);
         }
         fsxInterface->passUp(netData);
+    }
+
+    virtual void registerDataDescriptors(const DataDescriptorsTable * descriptors) {
+        this->descriptors = descriptors;
     }
 };
 
