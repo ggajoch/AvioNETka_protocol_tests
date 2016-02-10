@@ -17,26 +17,27 @@ class PresentationLayer : public PresentationInterface {
 public:
     virtual void passUp(const NETDataStruct & data) {
         const DataDescriptor & descriptor = this->descriptors->at(data.command);
-        dataTypeUnion value;
-        memcpy(value.bytes, data.data, data.len);
+
+        ValuedDataDescriptor desc(descriptor);
+        memcpy(desc.value.bytes, data.data, data.len);
 
 //        std::cout << "Got value: " << descriptor.get(value) << std::endl;
         // TODO: what next?
     }
 
-    template<typename T>
-    void passDown(const TypedDataDescriptor<T> & descriptor, const dataTypeUnion & value) {
-        NETDataStruct data(descriptor.id);
-        descriptor.pack(value);
-        data.append(value.bytes, descriptor.length);
+    virtual void passDown(const ValuedDataDescriptor & value) {
+        NETDataStruct data(value.descriptor.id);
+        printf("encode : %d; len: %d\n", value.descriptor.encode(), value.descriptor.length());
+        data.append(value.value.bytes, value.descriptor.length());
+        netInterface->passDown(data);
     }
 
-    template<typename T>
-    void passDownRegistration(const TypedDataDescriptor<T> & descriptor) {
+    virtual void passDownRegistration(const DataDescriptor & descriptor) {
         NETDataStruct data(REGISTRATION_ID);
         data.append(descriptor.fsxId);
-        data.append(TypeEncoding<T>::get());
-        netInterface->passDown(data);
+        data.append(descriptor.encode());
+        printf("encode : %d; len: %d\n", descriptor.encode(), descriptor.length());
+        netInterface->passDownRegistration(data);
     }
 
     void registerLowerLayer(NETInterface * netInterface) {

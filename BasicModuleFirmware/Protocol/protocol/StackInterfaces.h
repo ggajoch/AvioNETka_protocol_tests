@@ -22,7 +22,7 @@ public:
 class PresentationInterface {
 public:
     virtual void passUp(const NETDataStruct & data) = 0;
-    virtual void passDown(const DataDescriptor & descriptor, const dataTypeUnion & value) = 0;
+    virtual void passDown(const ValuedDataDescriptor & value) = 0;
     virtual void registerDataDescriptors(const DataDescriptorsTable * const descriptors) = 0;
     virtual void passDownRegistration(const DataDescriptor & descriptor) = 0;
 };

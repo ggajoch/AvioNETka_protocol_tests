@@ -98,12 +98,12 @@ TEST(PHYMock, 1) {
 }
 
 TEST(NetworkLayer, registration) {
-    DataDescriptor tab[] = {
-            DataDescriptor({0, false}),
-            DataDescriptor({1, true}),
-            DataDescriptor({2, true}),
-            DataDescriptor({3, true}),
-            DataDescriptor({4, false})
+    DataDescriptor *tab[] = {
+            new DataDescriptor({0, false}),
+            new DataDescriptor({1, true}),
+            new DataDescriptor({2, true}),
+            new DataDescriptor({3, true}),
+            new DataDescriptor({4, false})
     };
     DataDescriptorsTable desc(tab, 5);
     NETDataStruct data(0xAA);
@@ -151,23 +151,135 @@ TEST(NetworkLayer, registration) {
     }
 }
 
-TEST(PresentationLayer, first) {
-//    DataDescriptor tab[] = {
-//            DataDescriptor({0, false}),
-//            DataDescriptor({1, true}),
-//            DataDescriptor({2, true}),
-//            DataDescriptor({3, true}),
-//            DataDescriptor({4, false})
-//    };
-//    DataDescriptorsTable desc(tab, 5);
-//
-//    PHYMock phy;
-//    NetworkLayer net;
-//    PresentationLayer pres;
-//    pres.registerLowerLayer(&net);
-//    pres.registerDataDescriptors(&desc);
-//    net.registerUpperLayer(&pres);
-//    net.registerLowerLayer(&phy);
-//
-//    pres.passDownRegistration(tab[0]);
+
+TEST(PresentationLayer, registration_and_sending) {
+    DataDescriptor *tab[] = {
+            new BoolDataDescriptor({0x04030201, false}),
+            new FloatDataDescriptor({0x08070605, true}),
+            new Uint8DataDescriptor({0x0C0B0A09, true}),
+            new Uint16DataDescriptor({0x100F0E0D, true}),
+            new Uint32DataDescriptor({0x14131211, false}),
+            new DataDescriptor({0x18171615, false}),
+    };
+    DataDescriptorsTable desc(tab, 6);
+
+    PHYMock phy;
+    NetworkLayer net;
+    PresentationLayer pres;
+    pres.registerLowerLayer(&net);
+    pres.registerDataDescriptors(&desc);
+    net.registerUpperLayer(&pres);
+    net.registerLowerLayer(&phy);
+
+    pres.passDownRegistration(*(tab[0]));
+    {
+        uint8_t tab[] = {255, 0, 0x01, 0x02, 0x03, 0x04, 1, 0};
+        for (int i = 0; i < phy.out().size(); ++i) {
+            EXPECT_EQ(tab[i], phy.out().at(i));
+        }
+        phy.out().clear();
+    }
+    pres.passDownRegistration(*(tab[1]));
+    {
+        uint8_t tab[] = {255, 1, 0x05, 0x06, 0x07, 0x08, 2, 1};
+        for (int i = 0; i < phy.out().size(); ++i) {
+            EXPECT_EQ(tab[i], phy.out().at(i));
+        }
+        phy.out().clear();
+    }
+    pres.passDownRegistration(*tab[2]);
+    {
+        uint8_t tab[] = {255, 2, 0x09, 0x0A, 0x0B, 0x0C, 3, 1};
+        for (int i = 0; i < phy.out().size(); ++i) {
+            EXPECT_EQ(tab[i], phy.out().at(i));
+        }
+        phy.out().clear();
+    }
+    pres.passDownRegistration(*tab[3]);
+    {
+        uint8_t tab[] = {255, 3, 0x0D, 0x0E, 0x0F, 0x10, 4, 1};
+        for (int i = 0; i < phy.out().size(); ++i) {
+            EXPECT_EQ(tab[i], phy.out().at(i));
+        }
+        phy.out().clear();
+    }
+    pres.passDownRegistration(*tab[4]);
+    {
+        uint8_t tab[] = {255, 4, 0x11, 0x12, 0x13, 0x14, 5, 0};
+        for (int i = 0; i < phy.out().size(); ++i) {
+            EXPECT_EQ(tab[i], phy.out().at(i));
+        }
+        phy.out().clear();
+    }
+    pres.passDownRegistration(*tab[5]);
+    {
+        uint8_t tab[] = {255, 5, 0x15, 0x16, 0x17, 0x18, 0, 0};
+        for (int i = 0; i < phy.out().size(); ++i) {
+            EXPECT_EQ(tab[i], phy.out().at(i));
+        }
+        phy.out().clear();
+    }
+
+    {
+        ValuedDataDescriptor x(*tab[0]);
+        x.value.asBool = true;
+        pres.passDown(x);
+        EXPECT_EQ(2, phy.out().size());
+        EXPECT_EQ(0, phy.out().at(0));
+        EXPECT_EQ(1, phy.out().at(1));
+        phy.out().clear();
+
+        x.value.asBool = false;
+        pres.passDown(x);
+        EXPECT_EQ(2, phy.out().size());
+        EXPECT_EQ(0, phy.out().at(0));
+        EXPECT_EQ(0, phy.out().at(1));
+        phy.out().clear();
+    }
+
+
+    {
+        ValuedDataDescriptor x(*tab[1]);
+        x.value.asFloat = true;
+        pres.passDown(x);
+        EXPECT_EQ(5, phy.out().size());
+        EXPECT_EQ(1, phy.out().at(0));
+        phy.out().clear();
+    }
+
+    {
+        ValuedDataDescriptor x(*tab[2]);
+        x.value.asUint8 = 0xAE;
+        pres.passDown(x);
+        EXPECT_EQ(2, phy.out().size());
+        EXPECT_EQ(2, phy.out().at(0));
+        EXPECT_EQ(0xAE, phy.out().at(1));
+        phy.out().clear();
+    }
+
+
+    {
+        ValuedDataDescriptor x(*tab[3]);
+        x.value.asUint16 = 0x8A31;
+        pres.passDown(x);
+        EXPECT_EQ(3, phy.out().size());
+        EXPECT_EQ(3, phy.out().at(0));
+        EXPECT_EQ(0x31, phy.out().at(1));
+        EXPECT_EQ(0x8A, phy.out().at(2));
+        phy.out().clear();
+    }
+
+    {
+        ValuedDataDescriptor x(*tab[4]);
+        x.value.asUint32 = 0x1A5BC17E;
+        pres.passDown(x);
+        EXPECT_EQ(5, phy.out().size());
+        EXPECT_EQ(4, phy.out().at(0));
+        EXPECT_EQ(0x7E, phy.out().at(1));
+        EXPECT_EQ(0xC1, phy.out().at(2));
+        EXPECT_EQ(0x5B, phy.out().at(3));
+        EXPECT_EQ(0x1A, phy.out().at(4));
+        phy.out().clear();
+    }
 }
+

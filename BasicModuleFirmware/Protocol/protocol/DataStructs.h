@@ -15,17 +15,20 @@ static const uint8_t MAX_FRAME_SIZE = 8;
 struct PHYDataStruct {
     uint8_t data[MAX_FRAME_SIZE];
     uint8_t len;
-    PHYDataStruct() : len(0) {};
-    PHYDataStruct(const uint8_t * const source, uint8_t len) : len(0) {
+
+    PHYDataStruct() : len(0) { };
+
+    PHYDataStruct(const uint8_t *const source, uint8_t len) : len(0) {
         this->append(source, len);
     }
-    void append(const uint8_t * const source, uint8_t len) {
+
+    void append(const uint8_t *const source, uint8_t len) {
         memcpy(this->data + this->len, source, len);
         this->len += len;
     }
 
     template<typename T>
-    void append(const T & source) {
+    void append(const T &source) {
         memcpy(this->data + this->len, &source, sizeof(T));
         this->len += sizeof(T);
     }
@@ -37,29 +40,30 @@ struct NETDataStruct {
     const uint8_t command;
     uint8_t data[MAX_PACKET_SIZE];
     uint8_t len;
+
     NETDataStruct(const uint8_t command) : command(command), len(0) {
 
     }
 
-    NETDataStruct(const uint8_t command, const uint8_t * const data, const uint8_t len) :
-			command(command), len(len) {
+    NETDataStruct(const uint8_t command, const uint8_t *const data, const uint8_t len) :
+            command(command), len(len) {
         memcpy(this->data, data, len);
     }
 
     template<typename T>
-    void append(const T & source) {
+    void append(const T &source) {
         memcpy(this->data + this->len, &source, sizeof(T));
         this->len += sizeof(T);
     }
 
-    void append(const uint8_t * const source, uint8_t len) {
+    void append(const uint8_t *const source, uint8_t len) {
         memcpy(this->data + this->len, source, len);
         this->len += len;
     }
 };
 
 union dataTypeUnion {
-	uint8_t bytes[7];	
+    uint8_t bytes[7];
     bool asBool;
     uint8_t asUint8;
     uint16_t asUint16;
@@ -74,103 +78,130 @@ public:
     bool ack;
     bool rxEnabled = true;
 
-	typedef void type;
+    typedef void type;
 
     DataDescriptor() {
         this->fsxId = 0;
         this->ack = false;
     }
 
-    DataDescriptor(uint8_t FSXid, bool ack) {
+    DataDescriptor(uint32_t FSXid, bool ack) {
         this->fsxId = FSXid;
         this->ack = ack;
     }
 
-    virtual void callback(dataTypeUnion data) {
+    virtual void callback(dataTypeUnion data) const {
+    }
+
+    virtual uint8_t length() const {
+        return 0;
+    }
+
+    virtual uint8_t encode() const {
+        return 0;
     }
 };
 
 
 class DataDescriptorsTable {
-    DataDescriptor * table;
+    DataDescriptor **table;
 public:
     uint8_t len;
-    DataDescriptorsTable() : table(0), len(0) {}
-	DataDescriptorsTable(DataDescriptor *table, uint8_t len) : table(table), len(len) { }
-    const DataDescriptor & at(const uint8_t index) const {
-        return table[index];
+
+    DataDescriptorsTable() : table(0), len(0) { }
+
+    DataDescriptorsTable(DataDescriptor **table, uint8_t len) : table(table), len(len) { }
+
+    const DataDescriptor &at(const uint8_t index) const {
+        return (*table[index]);
     }
+
     const DataDescriptor &operator[](const uint8_t index) const {
-        return table[index];
+        return (*table[index]);
     }
 };
 
 template<typename T>
 class TypeEncoding {
 public:
-    constexpr uint8_t get();
+    static uint8_t value;
 };
+#define ENCODE(type, val)                        \
+    template<>                                   \
+    uint8_t TypeEncoding<type>::value = val;
 
-template<>
-constexpr uint8_t TypeEncoding<bool>::get() {
-    return 1;
-}
-
-template<>
-constexpr uint8_t TypeEncoding<uint8_t>::get() {
-    return 1;
-}
+ENCODE(bool, 1)
+ENCODE(float, 2)
+ENCODE(uint8_t, 3)
+ENCODE(uint16_t, 4)
+ENCODE(uint32_t, 5)
 
 
+class ValuedDataDescriptor {
+public:
+    const DataDescriptor & descriptor;
+    dataTypeUnion value;
+    ValuedDataDescriptor(const DataDescriptor & second) : descriptor(second) {
+    }
+};
 
 template<typename T>
 class TypedDataDescriptor : public DataDescriptor {
-	void (*callbackFunction)(T);
+    void (*callbackFunction)(T);
 public:
-	typedef T type;
-	static const uint8_t length = sizeof(type);
+    typedef T type;
+    static const uint8_t len = sizeof(type);
 
     TypedDataDescriptor(DataDescriptor x) :
             DataDescriptor(x), callbackFunction(nullptr) {
-		this->rxEnabled = false;
-	}
-	
-    TypedDataDescriptor(DataDescriptor x, void (*callback)(type)) :
-            DataDescriptor(x),  callbackFunction(callback) {
-		this->rxEnabled = true;
-	}
+        this->rxEnabled = false;
+    }
 
-	void call(type value) {
-		if(callbackFunction != nullptr) {
-			callbackFunction(value);
-		} else {
+    TypedDataDescriptor(DataDescriptor x, void (*callback)(type)) :
+            DataDescriptor(x), callbackFunction(callback) {
+        this->rxEnabled = true;
+    }
+
+    void call(const type value) const {
+        if (callbackFunction != nullptr) {
+            callbackFunction(value);
+        } else {
             printf("no callback for data id = %d!\n", this->id);
         }
-	}
+    }
 
-	void callback(dataTypeUnion);
+    void callback(dataTypeUnion) const;
 
-	dataTypeUnion pack(const type value) const;
-    const T & get(const dataTypeUnion & value) const;
+    dataTypeUnion pack(const type value) const;
+
+    const T &get(const dataTypeUnion &value) const;
+
+    virtual uint8_t length() const {
+        return this->len;
+    }
+
+    virtual uint8_t encode() const {
+        return TypeEncoding<T>::value;
+    }
 };
 
 
-#define TYPE_SPEC(type, asType, name) 	               	 	        \
-	template<>	    	            						        \
-	void TypedDataDescriptor<type>::callback(dataTypeUnion x) {		\
-		call(x.asType);		                                	    \
-	}		                                                    	\
+#define TYPE_SPEC(type, asType, name)                                \
+    template<>                                                        \
+    void TypedDataDescriptor<type>::callback(dataTypeUnion x) const {        \
+        call(x.asType);                                                \
+    }                                                                \
     template<>                                                      \
     const type & TypedDataDescriptor<type>::get(const dataTypeUnion & value) const {  \
         return value.asType;                                        \
     }                                                               \
-	template<>		                                                \
-	dataTypeUnion TypedDataDescriptor<type>::pack(const type value) const {		\
-		dataTypeUnion box;			                        		\
-		box.asType = value;		                                	\
-		return box;		                                			\
-	}		                                                		\
-	typedef TypedDataDescriptor<type> name ## DataDescriptor;
+    template<>                                                        \
+    dataTypeUnion TypedDataDescriptor<type>::pack(const type value) const {        \
+        dataTypeUnion box;                                            \
+        box.asType = value;                                            \
+        return box;                                                    \
+    }                                                                \
+    typedef TypedDataDescriptor<type> name ## DataDescriptor;
 
 
 TYPE_SPEC(bool, asBool, Bool)

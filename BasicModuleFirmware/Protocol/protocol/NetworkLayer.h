@@ -71,7 +71,6 @@ public:
         PHYDataStruct phyData;
         phyData.append(data.command);
         phyData.append(data.data, data.len);
-        phyInterface->passDown(phyData);
 
         if( this->descriptors->at(data.command).ack ) {
             sendWithACK(phyData);
@@ -85,6 +84,7 @@ public:
         print_byte_table(data.data, data.len);
         PHYDataStruct phyData;
         phyData.append(data.command);
+        const_cast<DataDescriptor *>(&descriptors->at(registered_commands))->id = registered_commands;
         phyData.append(registered_commands);
         phyData.append(data.data, data.len);
         phyData.append(descriptors->at(registered_commands).ack);

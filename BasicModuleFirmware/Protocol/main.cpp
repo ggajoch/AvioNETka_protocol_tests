@@ -5,6 +5,8 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <protocol/PhysicalLayer.h>
+#include <protocol/NetworkLayer.h>
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
@@ -146,33 +148,33 @@ void TCPReceiverTask(void *p) {
     }
 }
 
-class FSXLayer : public FSXInterface {
-    NETInterface * netInterface;
-public:
-    void registerLowerLayer(NETInterface * netInterface) {
-        this->netInterface = netInterface;
-    }
-    virtual void passUp(const NETDataStruct & data) {
-        printf("[FSX] Received: cmd = %d\n", data.command);
-        print_byte_table(data.data, data.len);
-    }
-    void mock(uint8_t command, uint32_t val) {
-        printf("[FSX] Sending: %d -> %d\n", command, val);
-        NETDataStruct netVal(command);
-        netVal.append(val);
-        this->netInterface->passDown(netVal);
-    }
-};
+//class FSXLayer : public FSXInterface {
+//    NETInterface * netInterface;
+//public:
+//    void registerLowerLayer(NETInterface * netInterface) {
+//        this->netInterface = netInterface;
+//    }
+//    virtual void passUp(const NETDataStruct & data) {
+//        printf("[FSX] Received: cmd = %d\n", data.command);
+//        print_byte_table(data.data, data.len);
+//    }
+//    void mock(uint8_t command, uint32_t val) {
+//        printf("[FSX] Sending: %d -> %d\n", command, val);
+//        NETDataStruct netVal(command);
+//        netVal.append(val);
+//        this->netInterface->passDown(netVal);
+//    }
+//};
 
 void starter(void * p) {
 
     NetworkLayer net;
-    FSXLayer fsx;
+//    FSXLayer fsx;
 
     phy.registerUpperLayer(&net);
     net.registerLowerLayer(&phy);
-    net.registerUpperLayer(&fsx);
-    fsx.registerLowerLayer(&net);
+//    net.registerUpperLayer(&fsx);
+//    fsx.registerLowerLayer(&net);
 
     DataDescriptor tab[255];
     tab[0] = data;
@@ -188,7 +190,7 @@ void starter(void * p) {
     net.passDownRegistration(netDataStruct);
     net.passDownRegistration(netDataStruct);
 
-    fsx.mock(1, 1);
+//    fsx.mock(1, 1);
 
 //    vTaskEndScheduler();
     while(1) {
