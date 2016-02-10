@@ -1,4 +1,5 @@
 #include <protocol/PresentationLayer.h>
+#include <protocol/ApplicationLayer.h>
 #include "gtest/gtest.h"
 #include "protocol/DataStructs.h"
 
@@ -149,6 +150,7 @@ TEST(NetworkLayer, registration) {
         net.passDownRegistration(data);
         uint8_t out[] = {0xAA, 4, 0x0E, 0x0A, 0x0B, 0x0C, 0x0D, 0};CHECK();
     }
+#undef CHECK
 }
 
 
@@ -174,6 +176,7 @@ TEST(PresentationLayer, registration_and_sending) {
     pres.passDownRegistration(*(tab[0]));
     {
         uint8_t tab[] = {255, 0, 0x01, 0x02, 0x03, 0x04, 1, 0};
+        EXPECT_EQ(sizeof(tab), phy.out().size());
         for (int i = 0; i < phy.out().size(); ++i) {
             EXPECT_EQ(tab[i], phy.out().at(i));
         }
@@ -182,6 +185,7 @@ TEST(PresentationLayer, registration_and_sending) {
     pres.passDownRegistration(*(tab[1]));
     {
         uint8_t tab[] = {255, 1, 0x05, 0x06, 0x07, 0x08, 2, 1};
+        EXPECT_EQ(sizeof(tab), phy.out().size());
         for (int i = 0; i < phy.out().size(); ++i) {
             EXPECT_EQ(tab[i], phy.out().at(i));
         }
@@ -190,6 +194,7 @@ TEST(PresentationLayer, registration_and_sending) {
     pres.passDownRegistration(*tab[2]);
     {
         uint8_t tab[] = {255, 2, 0x09, 0x0A, 0x0B, 0x0C, 3, 1};
+        EXPECT_EQ(sizeof(tab), phy.out().size());
         for (int i = 0; i < phy.out().size(); ++i) {
             EXPECT_EQ(tab[i], phy.out().at(i));
         }
@@ -198,6 +203,7 @@ TEST(PresentationLayer, registration_and_sending) {
     pres.passDownRegistration(*tab[3]);
     {
         uint8_t tab[] = {255, 3, 0x0D, 0x0E, 0x0F, 0x10, 4, 1};
+        EXPECT_EQ(sizeof(tab), phy.out().size());
         for (int i = 0; i < phy.out().size(); ++i) {
             EXPECT_EQ(tab[i], phy.out().at(i));
         }
@@ -206,6 +212,7 @@ TEST(PresentationLayer, registration_and_sending) {
     pres.passDownRegistration(*tab[4]);
     {
         uint8_t tab[] = {255, 4, 0x11, 0x12, 0x13, 0x14, 5, 0};
+        EXPECT_EQ(sizeof(tab), phy.out().size());
         for (int i = 0; i < phy.out().size(); ++i) {
             EXPECT_EQ(tab[i], phy.out().at(i));
         }
@@ -214,6 +221,7 @@ TEST(PresentationLayer, registration_and_sending) {
     pres.passDownRegistration(*tab[5]);
     {
         uint8_t tab[] = {255, 5, 0x15, 0x16, 0x17, 0x18, 0, 0};
+        EXPECT_EQ(sizeof(tab), phy.out().size());
         for (int i = 0; i < phy.out().size(); ++i) {
             EXPECT_EQ(tab[i], phy.out().at(i));
         }
@@ -283,3 +291,72 @@ TEST(PresentationLayer, registration_and_sending) {
     }
 }
 
+
+TEST(ApplicationLayer, test1) {
+    ApplicationLayer app;
+    PresentationLayer pres;
+    NetworkLayer net;
+    PHYMock phy;
+    app.registerLowerLayer(&pres);
+    pres.registerUpperLayer(&app);
+    pres.registerLowerLayer(&net);
+    net.registerUpperLayer(&pres);
+    net.registerLowerLayer(&phy);
+
+    BoolDataDescriptor d1({0x04030201, false});
+    FloatDataDescriptor d2({0x08070605, true});
+    Uint8DataDescriptor d3({0x0C0B0A09, true});
+    Uint16DataDescriptor d4({0x100F0E0D, true});
+    Uint32DataDescriptor d5({0x14131211, false});
+    DataDescriptor d6({0x18171615, false});
+    DataDescriptor *tab[] = {
+            &d1, &d2, &d3, &d4, &d5, &d6
+    };
+    DataDescriptorsTable desc(tab, 6);
+
+    app.registerDataDescriptors(&desc);
+
+#define CHECK()         EXPECT_EQ(sizeof(tab), phy.out().size()); \
+    for (int i = 0; i < phy.out().size(); ++i) {                  \
+        EXPECT_EQ(tab[i], phy.out().at(i));                       \
+    }                                                             \
+    phy.out().clear();                                            \
+
+    {
+        app.sendSubscriptions();
+        uint8_t tab[] = {255, 0, 0x01, 0x02, 0x03, 0x04, 1, 0, 255, 1, 0x05, 0x06, 0x07, 0x08, 2, 1, 255, 2, 0x09, 0x0A, 0x0B, 0x0C, 3, 1, 255, 3, 0x0D, 0x0E, 0x0F, 0x10, 4, 1, 255, 4, 0x11, 0x12, 0x13, 0x14, 5, 0, 255, 5, 0x15, 0x16, 0x17, 0x18, 0, 0};
+        CHECK();
+    }
+
+    {
+        app.send(d1, false);
+        uint8_t tab[] = {0, 0};
+        CHECK();
+    }
+
+    {
+        app.send(d1, true);
+        uint8_t tab[] = {0, 1};
+        CHECK();
+    }
+
+    for(int i = 0; i < 255; i++) {
+        app.send(d3, (uint8_t)i);
+        uint8_t tab[] = {2, i};
+        CHECK();
+    }
+
+    for(int i = 0; i < 1000; i++) {
+        uint16_t x = (i >> 7);
+        app.send(d4, x);
+        uint8_t tab[] = {3, x & 0xFF, x >> 8};
+        CHECK();
+    }
+
+    for(int i = 0; i < 1000; i++) {
+        uint32_t x = (i*i*i);
+        app.send(d5, x);
+        uint8_t tab[] = {4, x & 0xFF, (x & 0xFF00) >> 8, (x & 0xFF0000) >> 16, (x & 0xFF000000) >> 24};
+        CHECK();
+    }
+}
