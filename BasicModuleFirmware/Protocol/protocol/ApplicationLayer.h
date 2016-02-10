@@ -6,71 +6,39 @@
 #define PROTOCOL_APPLICATIONLAYER_H
 
 
-/*class ApplicationLayer : public ApplicationLayerInterface {
-    NetworkLayer net;
-    DataDescriptor **descriptors;
-    uint8_t descriptors_length;
+#include "StackInterfaces.h"
+
+class ApplicationLayer : public ApplicationLayerInterface {
+    const DataDescriptorsTable * descriptors;
+    PresentationInterface * presentationInterface;
+public:
+
+    virtual void passUp(const ValuedDataDescriptor & data) {
+        data.descriptor.callback(data.value);
+    }
+
+    template <typename T>
+    void send(const TypedDataDescriptor<T> & descriptor, T value) {
+        ValuedDataDescriptor valuedDataDescriptor(descriptor);
+        valuedDataDescriptor.value = descriptor.pack(value);
+        this->presentationInterface->passDown(valuedDataDescriptor);
+    }
 
     void sendSubscriptions() {
-        for (uint8_t i = 0; i < descriptors_length; ++i) {
-            net.sendData(makeSubscriptionPacket(descriptors[i]));
+        for(int i = 0; i < descriptors->len; ++i) {
+            presentationInterface->passDownRegistration(descriptors->at(i));
         }
     }
 
-public:
-    xSemaphoreHandle link_established;
-
-
-    ApplicationLayer(PHYLayer *phy, DataDescriptor **table, uint8_t len) :
-            net(this, phy), descriptors(table), descriptors_length(len) {
-
-        link_established = xSemaphoreCreateBinary();
-        xSemaphoreTake(link_established, 0);
-
-        for (uint8_t i = 0; i < len; ++i) {
-            descriptors[i]->id = i;
-            printf("assigning ID %d\n", i);
-        }
+    virtual void registerDataDescriptors(const DataDescriptorsTable * const descriptors) {
+        this->descriptors = descriptors;
+        this->presentationInterface->registerDataDescriptors(descriptors);
     }
 
-    template<typename T>
-    void sendData(const T & data, typename T::type value) {
-        dataTypeUnion packedData = data.pack(value);
-        NETDataStruct netData(data.id, packedData.bytes, T::length);
-        net.sendData(netData);
+    void registerLowerLayer(PresentationInterface * presentationInterface) {
+        this->presentationInterface = presentationInterface;
     }
-
-    void dataReceived(NETDataStruct data) {
-        if (data.command < descriptors_length) {
-            dataTypeUnion value;
-            memcpy(value.bytes, data.data, data.len);
-            descriptors[data.command]->callback(value);
-        } else {
-            if(data.command == 252 ) { //[TODO]: remove magic number
-                this->sendSubscriptions();
-                xSemaphoreGive(link_established);
-            }
-        }
-    }
-
-    bool ackRequired(uint8_t id) {
-        bool res = false;
-        if (id < descriptors_length) {
-            res = descriptors[id]->ack;
-        } else {
-            switch(id) {
-                case 251:
-                case 252:
-                    res = true;
-                    break;
-                default:
-                    res = false;
-            }
-        }
-        printf("ACK id = %d? -> %d\n", id, res);
-        return res;
-    }
-};*/
+};
 
 
 #endif //PROTOCOL_APPLICATIONLAYER_H

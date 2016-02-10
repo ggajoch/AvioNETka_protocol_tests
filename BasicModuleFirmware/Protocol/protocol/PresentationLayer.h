@@ -13,7 +13,7 @@
 class PresentationLayer : public PresentationInterface {
     const DataDescriptorsTable * descriptors;
     NETInterface * netInterface;
-    PresentationInterface * presentationInterface;
+    ApplicationLayerInterface * applicationLayerInterface;
 public:
     virtual void passUp(const NETDataStruct & data) {
         const DataDescriptor & descriptor = this->descriptors->at(data.command);
@@ -21,8 +21,7 @@ public:
         ValuedDataDescriptor desc(descriptor);
         memcpy(desc.value.bytes, data.data, data.len);
 
-//        std::cout << "Got value: " << descriptor.get(value) << std::endl;
-        // TODO: what next?
+        applicationLayerInterface->passUp(desc);
     }
 
     virtual void passDown(const ValuedDataDescriptor & value) {
@@ -44,8 +43,8 @@ public:
         this->netInterface = netInterface;
     }
 
-    void registerUpperLayer(PresentationInterface * fsxInterface) {
-//        this->fsxInterface = fsxInterface;
+    void registerUpperLayer(ApplicationLayerInterface * applicationLayerInterface) {
+        this->applicationLayerInterface = applicationLayerInterface;
     }
 
     virtual void registerDataDescriptors(const DataDescriptorsTable * const descriptors) {

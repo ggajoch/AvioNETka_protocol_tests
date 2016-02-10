@@ -27,4 +27,12 @@ public:
     virtual void passDownRegistration(const DataDescriptor & descriptor) = 0;
 };
 
+class ApplicationLayerInterface {
+public:
+    virtual void passUp(const ValuedDataDescriptor & data) = 0;
+//    virtual void passDown(const ValuedDataDescriptor & value) = 0;
+    virtual void registerDataDescriptors(const DataDescriptorsTable * const descriptors) = 0;
+//    virtual void passDownRegistration(const DataDescriptor & descriptor) = 0;
+};
+
 #endif //PROTOCOL_STACKINTERFACES_H
