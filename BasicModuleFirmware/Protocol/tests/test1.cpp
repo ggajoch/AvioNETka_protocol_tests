@@ -66,11 +66,6 @@ TEST(dataStructs, net) {
 }
 
 
-#define DEBUG
-
-#include "../protocol/NetworkLayer.h"
-
-
 class PHYMock : public PHYInterface {
     std::vector<uint8_t> PHYOut;
 public:
@@ -86,6 +81,10 @@ public:
         for (int i = 0; i < data.len; ++i) {
             PHYOut.push_back(data.data[i]);
         }
+    }
+
+    void mock(std::vector<uint8_t> & data) {
+
     }
 };
 
@@ -364,10 +363,13 @@ TEST(ApplicationLayer, test1) {
     }
 }
 
+void receive(bool x) {
+    printf("GOT %d\n",x);
+}
 
 TEST(Stack, test1) {
     PHYMock phy;
-    BoolDataDescriptor d1({0x04030201, false});
+    BoolDataDescriptor d1({0x04030201, false}, receive);
     FloatDataDescriptor d2({0x08070605, true});
     Uint8DataDescriptor d3({0x0C0B0A09, true});
     Uint16DataDescriptor d4({0x100F0E0D, true});
@@ -376,8 +378,8 @@ TEST(Stack, test1) {
     DataDescriptor *tab[] = {
             &d1, &d2, &d3, &d4, &d5, &d6
     };
-    DataDescriptorsTable desc(tab, 6);
-    auto x = Stack(phy, &desc);
+    auto x = Stack(phy, tab, 6);
+
     {
         uint8_t tab[] = {255, 0, 0x01, 0x02, 0x03, 0x04, 1, 0, 255, 1, 0x05, 0x06, 0x07, 0x08, 2, 1, 255, 2, 0x09, 0x0A, 0x0B, 0x0C, 3, 1, 255, 3, 0x0D, 0x0E, 0x0F, 0x10, 4, 1, 255, 4, 0x11, 0x12, 0x13, 0x14, 5, 0, 255, 5, 0x15, 0x16, 0x17, 0x18, 0, 0};
         CHECK();

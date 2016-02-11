@@ -12,17 +12,19 @@ class Stack {
     ApplicationLayer app;
     PresentationLayer pres;
     NetworkLayer net;
+    DataDescriptorsTable table;
 public:
 
-    Stack(PHYInterface & phy, DataDescriptorsTable * desc) {
+    Stack(PHYInterface & phy, DataDescriptor ** desc, const uint8_t len) {
         app.registerLowerLayer(&pres);
         pres.registerUpperLayer(&app);
         pres.registerLowerLayer(&net);
         net.registerUpperLayer(&pres);
         net.registerLowerLayer(&phy);
 
-        app.registerDataDescriptors(desc);
 
+        table = DataDescriptorsTable(desc, 6);
+        app.registerDataDescriptors(&table);
         app.sendSubscriptions();
     }
 };
