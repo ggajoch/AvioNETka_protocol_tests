@@ -123,22 +123,6 @@ public:
     }
 };
 
-template<typename T>
-class TypeEncoding {
-public:
-    static uint8_t value;
-};
-#define ENCODE(type, val)                        \
-    template<>                                   \
-    uint8_t TypeEncoding<type>::value = val;
-
-ENCODE(bool, 1)
-ENCODE(float, 2)
-ENCODE(uint8_t, 3)
-ENCODE(uint16_t, 4)
-ENCODE(uint32_t, 5)
-
-
 class ValuedDataDescriptor {
 public:
     const DataDescriptor & descriptor;
@@ -153,6 +137,7 @@ class TypedDataDescriptor : public DataDescriptor {
 public:
     typedef T type;
     static const uint8_t len = sizeof(type);
+    static const uint8_t value;
 
     TypedDataDescriptor(DataDescriptor x) :
             DataDescriptor(x), callbackFunction(nullptr) {
@@ -183,7 +168,7 @@ public:
     }
 
     virtual uint8_t encode() const {
-        return TypeEncoding<T>::value;
+        return this->value;
     }
 
     void send(T value) {
@@ -194,7 +179,7 @@ public:
 };
 
 
-#define TYPE_SPEC(type, asType, name)                                \
+#define TYPE_SPEC(type, asType, name, encoding)                                \
     template<>                                                        \
     void TypedDataDescriptor<type>::callback(dataTypeUnion x) const {        \
         call(x.asType);                                                \
@@ -209,14 +194,16 @@ public:
         box.asType = value;                                            \
         return box;                                                    \
     }                                                                \
-    typedef TypedDataDescriptor<type> name ## DataDescriptor;
+    typedef TypedDataDescriptor<type> name ## DataDescriptor;   \
+    template<>                                   \
+    const uint8_t TypedDataDescriptor<type>::value = encoding;
 
 
-TYPE_SPEC(bool, asBool, Bool)
-TYPE_SPEC(float, asFloat, Float)
-TYPE_SPEC(uint8_t, asUint8, Uint8)
-TYPE_SPEC(uint16_t, asUint16, Uint16)
-TYPE_SPEC(uint32_t, asUint32, Uint32)
+TYPE_SPEC(bool, asBool, Bool, 1)
+TYPE_SPEC(float, asFloat, Float, 2)
+TYPE_SPEC(uint8_t, asUint8, Uint8, 3)
+TYPE_SPEC(uint16_t, asUint16, Uint16, 4)
+TYPE_SPEC(uint32_t, asUint32, Uint32, 5)
 
 #endif //PROTOCOL_DATASTRUCTS_H
 
