@@ -69,6 +69,9 @@ union dataTypeUnion {
     uint8_t asUint8;
     uint16_t asUint16;
     uint32_t asUint32;
+    uint8_t asInt8;
+    uint16_t asInt16;
+    uint32_t asInt32;
     float asFloat;
 };
 
@@ -204,6 +207,10 @@ TYPE_SPEC(float, asFloat, Float, 2)
 TYPE_SPEC(uint8_t, asUint8, Uint8, 3)
 TYPE_SPEC(uint16_t, asUint16, Uint16, 4)
 TYPE_SPEC(uint32_t, asUint32, Uint32, 5)
+TYPE_SPEC(int8_t, asInt8, Int8, 6)
+TYPE_SPEC(int16_t, asInt16, Int16, 7)
+TYPE_SPEC(int32_t, asInt32, Int32, 8)
+
 
 #endif //PROTOCOL_DATASTRUCTS_H
 
