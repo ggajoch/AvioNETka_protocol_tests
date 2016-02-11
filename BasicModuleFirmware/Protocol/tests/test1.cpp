@@ -82,10 +82,6 @@ public:
             PHYOut.push_back(data.data[i]);
         }
     }
-
-    void mock(std::vector<uint8_t> & data) {
-
-    }
 };
 
 TEST(PHYMock, 1) {
@@ -171,9 +167,9 @@ TEST(PresentationLayer, registration_and_sending) {
     NetworkLayer net;
     PresentationLayer pres;
     pres.registerLowerLayer(&net);
-    pres.registerDataDescriptors(&desc);
     net.registerUpperLayer(&pres);
     net.registerLowerLayer(&phy);
+    pres.registerDataDescriptors(&desc);
 
     pres.passDownRegistration(*(tab[0]));
     {
@@ -363,13 +359,9 @@ TEST(ApplicationLayer, test1) {
     }
 }
 
-void receive(bool x) {
-    printf("GOT %d\n",x);
-}
-
-TEST(Stack, test1) {
+TEST(Stack, testTxd) {
     PHYMock phy;
-    BoolDataDescriptor d1({0x04030201, false}, receive);
+    BoolDataDescriptor d1({0x04030201, false});
     FloatDataDescriptor d2({0x08070605, true});
     Uint8DataDescriptor d3({0x0C0B0A09, true});
     Uint16DataDescriptor d4({0x100F0E0D, true});
@@ -417,3 +409,181 @@ TEST(Stack, test1) {
         CHECK();
     }
 }
+
+
+class PHYMockRxTx : public PHYInterface {
+    std::vector<uint8_t> PHYOut;
+public:
+    PHYMockRxTx() {
+        PHYOut.clear();
+    }
+
+    virtual void passDown(const PHYDataStruct &data) {
+        for (int i = 0; i < data.len; ++i) {
+            PHYOut.push_back(data.data[i]);
+        }
+    }
+    std::vector<uint8_t> &out() {
+        return PHYOut;
+    }
+
+    void mock(const std::vector<uint8_t> vec) {
+        PHYDataStruct dataStruct;
+        for(auto &x : vec) {
+            dataStruct.append(x);
+        }
+        netInterface->passUp(dataStruct);
+    }
+
+    void mock(const std::vector<uint8_t>::iterator begin,  const std::vector<uint8_t>::iterator end) {
+        PHYDataStruct dataStruct;
+        for(auto it = begin; it != end; ++it) {
+            dataStruct.append(*it);
+        }
+        netInterface->passUp(dataStruct);
+    }
+};
+
+class Receiver {
+public:
+    static std::vector<bool> receivedBool;
+    void static receiveBool(bool x) {
+        receivedBool.push_back(x);
+    }
+
+    static std::vector<float> receivedFloat;
+    void static receiveFloat(float x) {
+        receivedFloat.push_back(x);
+    }
+
+    static std::vector<uint8_t> receivedUint8;
+    void static receiveUint8(uint8_t x) {
+        receivedUint8.push_back(x);
+    }
+
+    static std::vector<uint16_t> receivedUint16;
+    void static receiveUint16(uint16_t x) {
+        receivedUint16.push_back(x);
+    }
+
+    static std::vector<uint32_t> receivedUint32;
+    void static receiveUint32(uint32_t x) {
+        receivedUint32.push_back(x);
+    }
+};
+
+std::vector<bool> Receiver::receivedBool;
+std::vector<float> Receiver::receivedFloat;
+std::vector<uint8_t> Receiver::receivedUint8;
+std::vector<uint16_t> Receiver::receivedUint16;
+std::vector<uint32_t> Receiver::receivedUint32;
+
+TEST(Stack, testRcv) {
+    PHYMockRxTx phy;
+    BoolDataDescriptor d1({0x04030201, false}, Receiver::receiveBool);
+    FloatDataDescriptor d2({0x08070605, true}, Receiver::receiveFloat);
+    Uint8DataDescriptor d3({0x0C0B0A09, true}, Receiver::receiveUint8);
+    Uint16DataDescriptor d4({0x100F0E0D, true}, Receiver::receiveUint16);
+    Uint32DataDescriptor d5({0x14131211, false}, Receiver::receiveUint32);
+    DataDescriptor d6({0x18171615, false});
+    DataDescriptor *tab[] = {
+            &d1, &d2, &d3, &d4, &d5, &d6
+    };
+    auto stack = Stack(phy, tab, 6);
+
+#undef CHECK
+#define CHECK()         EXPECT_EQ(sizeof(tab), phy.out().size()); \
+    for (int i = 0; i < phy.out().size(); ++i) {                  \
+        EXPECT_EQ(tab[i], phy.out().at(i));                       \
+    }                                                             \
+    phy.out().clear();                                            \
+
+    {
+        uint8_t tab[] = {255, 0, 0x01, 0x02, 0x03, 0x04, 1, 0, 255, 1, 0x05, 0x06, 0x07, 0x08, 2, 1, 255, 2, 0x09, 0x0A, 0x0B, 0x0C, 3, 1, 255, 3, 0x0D, 0x0E, 0x0F, 0x10, 4, 1, 255, 4, 0x11, 0x12, 0x13, 0x14, 5, 0, 255, 5, 0x15, 0x16, 0x17, 0x18, 0, 0};
+        CHECK();
+    }
+
+    for(int i = 0; i < 2; ++i)
+    {
+        bool val = i;
+        d1.send(val);
+
+        std::vector<uint8_t> data_out({0, val});
+        EXPECT_EQ(data_out, phy.out());
+
+        phy.mock(phy.out());
+        std::vector<bool> data_received({val});
+        EXPECT_EQ(data_received, Receiver::receivedBool);
+        Receiver::receivedBool.clear();
+        phy.out().clear();
+    }
+
+    for(float i = -100000; i < 100000; i += 1001.451) {
+        d2.send(i);
+
+        std::vector<uint8_t> data_out = phy.out();
+        phy.mock(phy.out());
+
+        std::vector<float> data_received({i});
+        EXPECT_EQ(data_received, Receiver::receivedFloat);
+        Receiver::receivedFloat.clear();
+
+        data_out.push_back(ACK_ID);
+        EXPECT_EQ(phy.out(), data_out);
+        phy.out().clear();
+    }
+
+    for(int i = 0; i < 255; i++) {
+        d3.send((uint8_t)i);
+
+        std::vector<uint8_t> data_out({2, i});
+        EXPECT_EQ(data_out, phy.out());
+
+        phy.mock(phy.out());
+        std::vector<uint8_t> data_received({i});
+        EXPECT_EQ(data_received, Receiver::receivedUint8);
+        Receiver::receivedUint8.clear();
+
+        data_out.push_back(ACK_ID);
+        EXPECT_EQ(phy.out(), data_out);
+        phy.out().clear();
+    }
+
+    for(int i = 0; i < 1000; i++) {
+        uint16_t x = (i*i >> 2);
+        d4.send(x);
+
+        std::vector<uint8_t> data_out({3, x & 0xFF, x >> 8});
+        EXPECT_EQ(data_out, phy.out());
+
+        phy.mock(phy.out());
+        std::vector<uint16_t> data_received({x});
+        EXPECT_EQ(data_received, Receiver::receivedUint16);
+        Receiver::receivedUint16.clear();
+
+        data_out.push_back(ACK_ID);
+        EXPECT_EQ(phy.out(), data_out);
+        phy.out().clear();
+    }
+
+    for(int i = 0; i < 1000; i++) {
+        uint32_t x = (i*i*i*i+5);
+
+        d5.send(x);
+
+        std::vector<uint8_t> data_out({4, x & 0xFF, (x & 0xFF00) >> 8, (x & 0xFF0000) >> 16, (x & 0xFF000000) >> 24});
+        EXPECT_EQ(data_out, phy.out());
+
+        phy.mock(phy.out());
+        std::vector<uint32_t> data_received({x});
+        EXPECT_EQ(data_received, Receiver::receivedUint32);
+        Receiver::receivedUint32.clear();
+
+//        data_out.push_back(ACK_ID);
+        EXPECT_EQ(phy.out(), data_out);
+        phy.out().clear();
+
+    }
+}
+
+
