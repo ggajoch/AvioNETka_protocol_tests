@@ -8,12 +8,11 @@
 
 //#include "DataStructs.h"
 
-class DataDescriptor;
-union dataTypeUnion;
+class ValuedDataDescriptor;
 
 class ApplicationDataInterface {
 public:
-    virtual void send(const DataDescriptor & descriptor, dataTypeUnion value) = 0;
+    virtual void passDown(const ValuedDataDescriptor & value) const = 0;
 };
 
 #endif //PROTOCOL_APPDATAINTERFACE_H

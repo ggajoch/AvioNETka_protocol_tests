@@ -187,7 +187,9 @@ public:
     }
 
     void send(T value) {
-        app->send(*this, this->pack(value));
+        ValuedDataDescriptor val(*this);
+        val.value = this->pack(value);
+        app->passDown(val);
     }
 };
 

@@ -21,9 +21,10 @@ public:
         pres.registerLowerLayer(&net);
         net.registerUpperLayer(&pres);
         net.registerLowerLayer(&phy);
+        phy.registerUpperLayer(&net);
 
 
-        table = DataDescriptorsTable(desc, 6);
+        table = DataDescriptorsTable(desc, len);
         app.registerDataDescriptors(&table);
         app.sendSubscriptions();
     }
