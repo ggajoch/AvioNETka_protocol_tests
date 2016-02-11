@@ -164,7 +164,7 @@ public:
 
     virtual dataTypeUnion pack(const type value) const;
 
-    const T &get(const dataTypeUnion &value) const;
+    const T get(const dataTypeUnion &value) const;
 
     virtual uint8_t length() const {
         return this->len;
@@ -188,7 +188,7 @@ public:
         call(x.asType);                                                \
     }                                                                \
     template<>                                                      \
-    const type & TypedDataDescriptor<type>::get(const dataTypeUnion & value) const {  \
+    const type TypedDataDescriptor<type>::get(const dataTypeUnion & value) const {  \
         return value.asType;                                        \
     }                                                               \
     template<>                                                        \
