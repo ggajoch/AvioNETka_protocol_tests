@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "AppDataInterface.h"
 
 static const uint8_t MAX_FRAME_SIZE = 8;
 
@@ -73,6 +74,7 @@ union dataTypeUnion {
 
 class DataDescriptor {
 public:
+    ApplicationDataInterface * app;
     uint8_t id;
     uint32_t fsxId;
     bool ack;
@@ -112,11 +114,11 @@ public:
 
     DataDescriptorsTable(DataDescriptor **table, uint8_t len) : table(table), len(len) { }
 
-    const DataDescriptor &at(const uint8_t index) const {
+    DataDescriptor &at(const uint8_t index) const {
         return (*table[index]);
     }
 
-    const DataDescriptor &operator[](const uint8_t index) const {
+    DataDescriptor &operator[](const uint8_t index) const {
         return (*table[index]);
     }
 };
@@ -172,7 +174,7 @@ public:
 
     void callback(dataTypeUnion) const;
 
-    dataTypeUnion pack(const type value) const;
+    virtual dataTypeUnion pack(const type value) const;
 
     const T &get(const dataTypeUnion &value) const;
 
@@ -182,6 +184,10 @@ public:
 
     virtual uint8_t encode() const {
         return TypeEncoding<T>::value;
+    }
+
+    void send(T value) {
+        app->send(*this, this->pack(value));
     }
 };
 

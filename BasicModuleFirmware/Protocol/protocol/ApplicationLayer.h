@@ -7,9 +7,10 @@
 
 
 #include "StackInterfaces.h"
+#include "AppDataInterface.h"
 
-class ApplicationLayer : public ApplicationLayerInterface {
-    const DataDescriptorsTable * descriptors;
+class ApplicationLayer : public ApplicationLayerInterface, public ApplicationDataInterface {
+    DataDescriptorsTable * descriptors;
     PresentationInterface * presentationInterface;
 public:
 
@@ -24,13 +25,20 @@ public:
         this->presentationInterface->passDown(valuedDataDescriptor);
     }
 
+    virtual void send(const DataDescriptor & descriptor, dataTypeUnion value) {
+        ValuedDataDescriptor valuedDataDescriptor(descriptor);
+        valuedDataDescriptor.value = value;
+        this->presentationInterface->passDown(valuedDataDescriptor);
+    }
+
     void sendSubscriptions() {
         for(int i = 0; i < descriptors->len; ++i) {
             presentationInterface->passDownRegistration(descriptors->at(i));
+            descriptors->at(i).app = this;
         }
     }
 
-    virtual void registerDataDescriptors(const DataDescriptorsTable * const descriptors) {
+    virtual void registerDataDescriptors(DataDescriptorsTable * const descriptors) {
         this->descriptors = descriptors;
         this->presentationInterface->registerDataDescriptors(descriptors);
     }
