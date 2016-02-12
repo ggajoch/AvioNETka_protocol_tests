@@ -1,12 +1,15 @@
+#define DEBUG
+
 #include <iostream>
 
+#include <protocol/DataStructs.h>
+#include <protocol/useful.h>
+#include <protocol/NetworkLayer.h>
 
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <ws2tcpip.h>
-#include <protocol/PhysicalLayer.h>
-#include <protocol/NetworkLayer.h>
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
@@ -33,7 +36,7 @@ int initSocket() {
     printf("Client: Winsock DLL status is %s.\n", wsaData.szSystemStatus);
 
     // Create a new socket to make a client connection.
-    // AF_INET = 2, The Internet Protocol version 4 (IPv4) address family, TCP protocol
+    // AF_INET = 2, The Internet Protocol version 4 (IPv4) address family, TCP old
     SendingSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if(SendingSocket == INVALID_SOCKET)
     {
@@ -90,28 +93,30 @@ int initSocket() {
 using namespace std;
 
 
-void firstCall(bool x) {
-    printf("got value %d\n",x);
-}
-BoolDataDescriptor data({1, true}, firstCall);
-
-void secondCall(float x) {
-    printf("got value %f\n",x);
-}
-FloatDataDescriptor data2({2, true}, secondCall);
-
-FloatDataDescriptor data3({2, true});
+//void firstCall(bool x) {
+//    printf("got value %d\n",x);
+//}
+//BoolDataDescriptor data({1, true}, firstCall);
+//
+//void secondCall(float x) {
+//    printf("got value %f\n",x);
+//}
+//FloatDataDescriptor data2({2, true}, secondCall);
+//
+//FloatDataDescriptor data3({2, true});
 
 
 using namespace FreeRTOS;
 
 
-class TCP_PHYLayer : public PHYLayer {
+#include "protocol/StackInterfaces.h"
+
+class TCP_PHYLayer : public PHYInterface {
 public:
     void mockData(const PHYDataStruct & data) {
         printf("[PHY] received data: ");
         print_byte_table(data.data, data.len);
-        net->passUp(data);
+        netInterface->passUp(data);
     }
     virtual void passDown(const PHYDataStruct & data) {
         static uint8_t buffer[100];
@@ -168,28 +173,6 @@ void TCPReceiverTask(void *p) {
 
 void starter(void * p) {
 
-    NetworkLayer net;
-//    FSXLayer fsx;
-
-    phy.registerUpperLayer(&net);
-    net.registerLowerLayer(&phy);
-//    net.registerUpperLayer(&fsx);
-//    fsx.registerLowerLayer(&net);
-
-    DataDescriptor tab[255];
-    tab[0] = data;
-    tab[1] = data2;
-    tab[2] = data3;
-    tab[250] = DataDescriptor({250, false});
-    tab[255] = DataDescriptor({255, false});
-    DataDescriptorsTable desc(tab, sizeof(tab)/sizeof(tab[0]));
-    net.registerDataDescriptors(&desc);
-
-    NETDataStruct netDataStruct(255);
-    netDataStruct.len = 0;
-    net.passDownRegistration(netDataStruct);
-    net.passDownRegistration(netDataStruct);
-
 //    fsx.mock(1, 1);
 
 //    vTaskEndScheduler();
@@ -199,15 +182,38 @@ void starter(void * p) {
 }
 
 
+class PHYSTDIO : public PHYInterface {
+
+public:
+    virtual void passDown(const PHYDataStruct &data) {
+        printf("[PHY] sending data: ");
+        print_byte_table(data.data, data.len);
+    }
+};
+
+
 int main() {
-    initSocket();
+    TypedDataDescriptor<float> desc1(1, false);
+    TypedDataDescriptor<float> desc2(2, false);
+    DataDescriptor * tab[] = {
+            &desc1,
+            &desc2
+    };
+    PHYSTDIO phy;
+    NetworkLayer net(phy, tab, 2);
+
+    desc1.send(5.0);
+    printf("OK\n");
+
+//    initSocket();
 //    BytesSent = send(SendingSocket, sendbuf, strlen(sendbuf), 0);
 
 //    Task::create(TCPReceiverTask, "Rx", 1000, 2);
-    Task::create(starter, "st", 1000, 2);
-    Task::create(TCPReceiverTask, "rx", 1000, 2);
+//    Task::create(starter, "st", 1000, 2);
+//    Task::create(TCPReceiverTask, "rx", 1000, 2);
 //
-    control::startScheduler();
+//    control::startScheduler();
 
     return 0;
 }
+

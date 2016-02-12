@@ -9,7 +9,7 @@ execute_process(
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -O0")
 
 file(GLOB FreeRTOSSrc
 FreeRTOS/*.c
@@ -23,7 +23,7 @@ FreeRTOS/FreeRTOS-Plus-Trace/Include/*.h
 find_library(LIBWMM winmm)
 find_library(LIBWINSOCK ws2_32)
 
-set(SOURCE_FILES ${FreeRTOSSrc} ++FreeRTOS.h main.cpp protocol/PhysicalLayer.h protocol/useful.h protocol/DataStructs.h protocol/NetworkLayer.h protocol/ApplicationLayer.h protocol/StackInterfaces.h protocol/PresentationLayer.h protocol/Stack.h protocol/AppDataInterface.h)
+set(SOURCE_FILES ${FreeRTOSSrc} ++FreeRTOS.h main.cpp protocol/DataStructs.h protocol/NetworkLayer.h protocol/StackInterfaces.h protocol/useful.h protocol/Commands.h protocol/SystemCommands.h)
 
 include_directories(FreeRTOS/include FreeRTOS/portable FreeRTOS/FreeRTOS-Plus-Trace/Include .)
 add_executable(protocol ${SOURCE_FILES})
