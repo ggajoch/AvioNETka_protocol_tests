@@ -19,6 +19,7 @@ class NetworkDescriptor:
     @staticmethod
     def system_command(ack: bool):
         val = NetworkDescriptor()
+
         val.ack = ack
         val.data = False
         return val
@@ -30,6 +31,7 @@ class NetworkDescriptors:
         self.systemCommands = \
             {250: NetworkDescriptor.system_command(False),
              255: NetworkDescriptor.system_command(True)}
+
 
     def data_command(self, command):
         return not self.system_command(command)

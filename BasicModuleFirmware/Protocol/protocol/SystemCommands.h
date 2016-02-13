@@ -8,13 +8,13 @@ class RegisterCommand_t : public Command {
 public:
     explicit RegisterCommand_t() : Command(255, true) {
     }
-    void send(const DataDescriptor & descriptor) {
+    StackError send(const DataDescriptor & descriptor) {
         NETDataStruct data(this->id);
         data.append(descriptor.id);
         data.append(descriptor.fsxId);
         data.append(descriptor.encode());
         data.append(descriptor.ack);
-        this->passDown(data);
+        return this->passDown(data);
     }
 protected:
     virtual void callback(const dataTypeUnion &data) {
@@ -31,9 +31,56 @@ public:
     }
 protected:
     virtual void callback(const dataTypeUnion &data) {
+        printf("[CMD] received ACK!");
+        this->net->receivedACK();
     }
 };
 
+
+class Ping_t : public Command {
+    FreeRTOS::Semaphore semaphore;
+public:
+    explicit Ping_t() : Command(251, false) {
+        semaphore.give();
+    }
+    StackError send() {
+        NETDataStruct data(this->id);
+        data.append((uint8_t)1);
+        semaphore.take(0);
+        StackError res = this->passDown(data);
+        if( res != STACK_OK ) {
+            return res;
+        }
+        if( semaphore.take(100) ) {
+            return STACK_OK;
+        } else {
+            return STACK_TIMEOUT;
+        }
+    }
+protected:
+    virtual void callback(const dataTypeUnion &data) {
+        if(data.bytes[0] == 1) {
+            NETDataStruct dataout(this->id);
+            dataout.append((uint8_t)2);
+            this->passDown(dataout);
+        } else if(data.bytes[0] == 2) {
+            semaphore.give();
+        }
+    }
+};
+
+
+class SendSubscriptions_t : public Command {
+public:
+    explicit SendSubscriptions_t() : Command(252, false) {
+    }
+    void send() {
+    }
+protected:
+    virtual void callback(const dataTypeUnion &data) {
+        net->sendSubscriptions();
+    }
+};
 
 
 #endif //PROTOCOL_SYSTEMCOMMANDS_H

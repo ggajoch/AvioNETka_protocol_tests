@@ -27,17 +27,14 @@ public:
     }
 
 
-    void passUp(const dataTypeUnion &  data) {
-        if( ack ) {
-            // TODO: send ACK
-        }
+    StackError passUp(const dataTypeUnion &  data) {
         this->callback(data);
     }
-    void passDown(const NETDataStruct & data) {
+    StackError passDown(const NETDataStruct & data) {
         if( ack ) {
-            net->passDownWithACK(data);
+            return net->passDownWithACK(data);
         } else {
-            net->passDown(data);
+            return net->passDown(data);
         }
     }
 };
@@ -77,11 +74,15 @@ public:
 
     dataTypeUnion pack(type value);
 
-    void send(type value) {
+    StackError send(type value) {
+        StackError ret = net->stackState();
+        if( ret != STACK_OK ) {
+            return ret;
+        }
         NETDataStruct data(this->id);
         dataTypeUnion val = this->pack(value);
         data.append(val.bytes, this->len);
-        this->passDown(data);
+        return this->passDown(data);
     }
 
     virtual uint8_t encode() const {

@@ -1,5 +1,3 @@
-#define DEBUG
-
 #include <iostream>
 
 #include <protocol/DataStructs.h>
@@ -118,7 +116,7 @@ public:
         print_byte_table(data.data, data.len);
         netInterface->passUp(data);
     }
-    virtual void passDown(const PHYDataStruct & data) {
+    virtual StackError passDown(const PHYDataStruct & data) {
         static uint8_t buffer[100];
         uint16_t address = 0xAAAA;
         memcpy(buffer, &address, 2);
@@ -129,9 +127,14 @@ public:
 
         BytesSent = send(SendingSocket, (char*)buffer, data.len+2, 0);
         context::delay(10);
+        if( BytesSent == data.len + 2) {
+            return STACK_OK;
+        }
+        return STACK_PHY_ERROR;
     }
 };
 TCP_PHYLayer phy;
+NetworkLayer * net;
 
 void TCPReceiverTask(void *p) {
     char recvBuf[100];
@@ -153,6 +156,13 @@ void TCPReceiverTask(void *p) {
     }
 }
 
+void StackPoll(void *p) {
+    while(net == 0) {}
+    while(1) {
+        net->testConnection();
+        vTaskDelay(100);
+    }
+}
 //class FSXLayer : public FSXInterface {
 //    NETInterface * netInterface;
 //public:
@@ -171,11 +181,24 @@ void TCPReceiverTask(void *p) {
 //    }
 //};
 
+void ret(float x) {
+    printf("Got value %d\n",x);
+}
+
 void starter(void * p) {
+    TypedDataDescriptor<float> fsx(1, true,  ret);
+    DataDescriptor * tab[] = {&fsx};
+    NetworkLayer network(&phy, tab, 1);
+    net = &network;
 
-//    fsx.mock(1, 1);
+    while( net->stackState() != STACK_OK ) {
+        vTaskDelay(100);
+    }
+    fsx.send(1.0);
 
-//    vTaskEndScheduler();
+    vTaskDelay(10000);
+
+    vTaskEndScheduler();
     while(1) {
         context::delay(portMAX_DELAY);
     }
@@ -185,35 +208,22 @@ void starter(void * p) {
 class PHYSTDIO : public PHYInterface {
 
 public:
-    virtual void passDown(const PHYDataStruct &data) {
+    virtual StackError passDown(const PHYDataStruct &data) {
         printf("[PHY] sending data: ");
         print_byte_table(data.data, data.len);
+        return STACK_OK;
     }
 };
 
 
 int main() {
-    TypedDataDescriptor<float> desc1(1, false);
-    TypedDataDescriptor<float> desc2(2, false);
-    DataDescriptor * tab[] = {
-            &desc1,
-            &desc2
-    };
-    PHYSTDIO phy;
-    NetworkLayer net(phy, tab, 2);
+    initSocket();
 
-    desc1.send(5.0);
-    printf("OK\n");
-
-//    initSocket();
-//    BytesSent = send(SendingSocket, sendbuf, strlen(sendbuf), 0);
-
-//    Task::create(TCPReceiverTask, "Rx", 1000, 2);
-//    Task::create(starter, "st", 1000, 2);
-//    Task::create(TCPReceiverTask, "rx", 1000, 2);
+    Task::create(StackPoll, "poll", 1000, 2);
+    Task::create(starter, "st", 1000, 2);
+    Task::create(TCPReceiverTask, "rx", 1000, 2);
 //
-//    control::startScheduler();
+    control::startScheduler();
 
     return 0;
 }
-

@@ -14,6 +14,7 @@ extern "C" {
 };
 #endif
 
+#include <++FreeRTOS.h>
 #include "DataStructs.h"
 #include "useful.h"
 #include "StackInterfaces.h"
@@ -22,20 +23,41 @@ extern "C" {
 
 RegisterCommand_t RegisterCommand;
 ACKCommand_t ACKCommand;
+Ping_t Ping;
+
+//using namespace FreeRTOS;
 
 class NetworkLayer : public NETInterface {
+private:
+    StackError stackState_;
+    StackError updateStackState(StackError now) {
+        if( now != STACK_OK ) {
+            stackState_ = now;
+            return stackState_;
+        }
+        return now;
+    }
+
     CommandsTable table;
     Command * descriptorTable[256];
+    DataDescriptor ** dataTable;
+    uint8_t dataTableLen;
 
-#ifndef DEBUG
-    SemaphoreHandle_t ACKSemaphore;
-#endif
+    FreeRTOS::Semaphore ackSemaphore;
+
 public:
-    NetworkLayer(PHYInterface & phy, DataDescriptor ** dataTable, uint8_t len) : table(descriptorTable, 255) {
-        registerLowerLayer(&phy);
-#ifndef DEBUG
-        ACKSemaphore = xSemaphoreCreateBinary();
-#endif
+
+    virtual StackError stackState() {
+        return stackState_;
+    }
+
+    NetworkLayer(PHYInterface * phy, DataDescriptor ** dataTable, uint8_t len) : table(descriptorTable, 255) {
+        stackState_ = STACK_NO_CONNECTION;
+        ackSemaphore.give();
+        registerLowerLayer(phy);
+        phy->registerUpperLayer(this);
+        this->dataTable = dataTable;
+        this->dataTableLen = len;
         for(uint8_t i = 0; i < len; ++i) {
             uint8_t id = dataTable[i]->id;
             printf("assigning i = %d, id = %d\n",i, id);
@@ -47,35 +69,36 @@ public:
         descriptorTable[RegisterCommand.id] = &RegisterCommand;
         ACKCommand.net = this;
         descriptorTable[ACKCommand.id] = &ACKCommand;
-
-        for(uint8_t i = 0; i < len; ++i) {
-            RegisterCommand.send(*dataTable[i]);
-        }
+        Ping.net = this;
+        descriptorTable[Ping.id] = &Ping;
     }
 
+    void testConnection() {
+        stackState_ = Ping.send();
+        printf("ping: %d\n", stackState());
+    }
 
-    virtual void passDownWithACK(const NETDataStruct & data) const {
-#ifndef DEBUG
-        for(uint8_t i = 0; i < 3; ++i) {
+    virtual StackError passDownWithACK(const NETDataStruct & data) {
+        for (uint8_t i = 0; i < 10; ++i) {
             printf("transmitting and waiting for ack\n");
-            xSemaphoreTake(ACKSemaphore, 0);
+            ackSemaphore.take(0);
 
-            this->passDown(data);
-            bool res = (bool) xSemaphoreTake(ACKSemaphore, 1000);
-            res &= 0x1;
-            if( res ) {
+            StackError res = this->passDown(data);
+            if( res != STACK_OK ) {
+                stackState_ = res;
+                return res;
+            }
+            if ( ackSemaphore.take(100) ) {
                 printf("ACK got!\n");
-                break;
+                return STACK_OK;
             } else {
                 printf("PACKET LOSS!!!!\n");
             }
         }
-#else
-        this->passDown(data);
-#endif
+        return updateStackState(STACK_TIMEOUT);
     }
 
-    virtual void passDown(const NETDataStruct & data) const {
+    virtual StackError passDown(const NETDataStruct & data) {
         printf("[network] sending (id = %d): ", data.command);
         print_byte_table(data.data, data.len);
 
@@ -83,10 +106,10 @@ public:
         phyData.append(data.command);
         phyData.append(data.data, data.len);
 
-        phyInterface->passDown(phyData);
+        return updateStackState(phyInterface->passDown(phyData));
     }
 
-    virtual void passUp(const PHYDataStruct & data) const {
+    virtual StackError passUp(const PHYDataStruct & data) {
 //        NETDataStruct netData(data.data[0], data.data+1, data.len-1);
         uint8_t id = data.data[0];
         printf("[network] received (id = %d): ", id);
@@ -98,7 +121,18 @@ public:
         }
         descriptorTable[id]->passUp(val);
     }
+
+    virtual void receivedACK() {
+        ackSemaphore.give();
+    }
+
+    virtual StackError sendSubscriptions() {
+        for(uint8_t i = 0; i < dataTableLen; ++i) {
+            RegisterCommand.send(*dataTable[i]);
+        }
+    }
 };
 
 
 #endif //PROTOCOL_NETWORKLAYER_H
+
