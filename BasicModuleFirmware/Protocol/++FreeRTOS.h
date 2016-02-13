@@ -36,8 +36,8 @@ namespace FreeRTOS {
         xSemaphoreHandle handle;
         SemaphoreGeneric() {}
     public:
-        void take(uint32_t timeToWait = portMAX_DELAY) {
-            xSemaphoreTake(this->handle, timeToWait);
+        bool take(uint32_t timeToWait = portMAX_DELAY) {
+            return (bool)xSemaphoreTake(this->handle, timeToWait);
         }
 
         void give() {
