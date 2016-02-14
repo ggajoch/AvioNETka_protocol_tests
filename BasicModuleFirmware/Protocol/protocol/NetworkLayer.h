@@ -15,6 +15,7 @@ extern "C" {
 #endif
 
 #include <++FreeRTOS.h>
+#include <stdint.h>
 #include "DataStructs.h"
 #include "useful.h"
 #include "StackInterfaces.h"
@@ -24,7 +25,7 @@ extern "C" {
 RegisterCommand_t RegisterCommand;
 ACKCommand_t ACKCommand;
 Ping_t Ping;
-
+SendSubscriptions_t SendSubscriptions;
 //using namespace FreeRTOS;
 
 class NetworkLayer : public NETInterface {
@@ -71,6 +72,8 @@ public:
         descriptorTable[ACKCommand.id] = &ACKCommand;
         Ping.net = this;
         descriptorTable[Ping.id] = &Ping;
+        SendSubscriptions.net = this;
+        descriptorTable[SendSubscriptions.id] = &SendSubscriptions;
     }
 
     void testConnection() {
@@ -80,7 +83,7 @@ public:
 
     virtual StackError passDownWithACK(const NETDataStruct & data) {
         for (uint8_t i = 0; i < 10; ++i) {
-            printf("transmitting and waiting for ack\n");
+            printf("[NET] sending and waiting for ack (id = %d): ", data.command);
             ackSemaphore.take(0);
 
             StackError res = this->passDown(data);
@@ -88,7 +91,7 @@ public:
                 stackState_ = res;
                 return res;
             }
-            if ( ackSemaphore.take(100) ) {
+            if ( ackSemaphore.take(1000) ) {
                 printf("ACK got!\n");
                 return STACK_OK;
             } else {

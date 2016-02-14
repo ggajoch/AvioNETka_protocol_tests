@@ -51,7 +51,7 @@ public:
         if( res != STACK_OK ) {
             return res;
         }
-        if( semaphore.take(100) ) {
+        if( semaphore.take(1000) ) {
             return STACK_OK;
         } else {
             return STACK_TIMEOUT;

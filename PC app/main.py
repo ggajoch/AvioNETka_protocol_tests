@@ -1,16 +1,22 @@
-import PhysicalLayer, NetworkLayer, DataStructs
+from NetworkLayer import Network
+from PhysicalLayer import TCP
+import sim, time
 
-tcpphy = PhysicalLayer.TCP()
-net = NetworkLayer.NetworkLayer()
 
-tcpphy.register_upper_layer(net)
-net.register_lower_layer(tcpphy)
+phy = TCP()
+net = Network(phy)
+phy.register_upper_layer(net)
 
-import time
+
 time.sleep(5)
-print("\n\nsimulating values!\n\n")
-x = DataStructs.NETDataStruct()
-x.address = 43690
-x.command = 1
-x.data = [2, 3, 4, 5]
-net.passDown(x)
+i=0
+while True:
+    sim.set(1, i)
+    i += 1
+    #time.sleep(3)
+
+# x = Module(net, 1)
+# x.pass_up(DataPoint(0, b'\x00'))
+# x.pass_up(DataPoint(255, b'\x00\x01\x02\x03\x00\x02\x01'))
+# print(x.descriptors[0])
+# x.pass_up(DataPoint(0, b'\x01'))

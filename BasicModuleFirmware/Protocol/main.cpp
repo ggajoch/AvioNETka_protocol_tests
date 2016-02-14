@@ -56,7 +56,8 @@ int initSocket() {
     // Port no.
     ServerAddr.sin_port = htons(Port);
     // The IP address
-    ServerAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    //ServerAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    ServerAddr.sin_addr.s_addr = inet_addr("192.168.8.102");
 
     // Make a connection to the server with socket SendingSocket.
     RetCode = connect(SendingSocket, (SOCKADDR *) &ServerAddr, sizeof(ServerAddr));
@@ -126,7 +127,7 @@ public:
         print_byte_table(buffer, data.len+2);
 
         BytesSent = send(SendingSocket, (char*)buffer, data.len+2, 0);
-        context::delay(10);
+        context::delay(1);
         if( BytesSent == data.len + 2) {
             return STACK_OK;
         }
@@ -152,7 +153,7 @@ void TCPReceiverTask(void *p) {
             printf("connection failed %d\n", res);
             vTaskDelay(1000);
         }
-        vTaskDelay(10);
+        vTaskDelay(1);
     }
 }
 
@@ -160,7 +161,7 @@ void StackPoll(void *p) {
     while(net == 0) {}
     while(1) {
         net->testConnection();
-        vTaskDelay(100);
+        vTaskDelay(100000);
     }
 }
 //class FSXLayer : public FSXInterface {
@@ -182,7 +183,7 @@ void StackPoll(void *p) {
 //};
 
 void ret(float x) {
-    printf("Got value %d\n",x);
+    printf("Got value %f\n",x);
 }
 
 void starter(void * p) {
@@ -194,7 +195,8 @@ void starter(void * p) {
     while( net->stackState() != STACK_OK ) {
         vTaskDelay(100);
     }
-    fsx.send(1.0);
+//    net->sendSubscriptions();
+//    fsx.send(1.0);
 
     vTaskDelay(10000);
 

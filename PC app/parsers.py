@@ -1,41 +1,116 @@
-def table_to_string(table):
-    s = ""
-    for i in table:
-        s += chr(i)
-    return s
+import struct
 
-def string_to_table(string):
-    t = []
-    for i in string:
-        t.append(ord(i))
-    return t
+
+def encode(encoding: int, data):
+    if encoding == 0:
+        return encode_bool(data)
+    elif encoding == 1:
+        return encode_float(data)
+    elif encoding == 2:
+        return encode_uint8(data)
+    elif encoding == 3:
+        return encode_uint16(data)
+    elif encoding == 4:
+        return encode_uint32(data)
+    elif encoding == 5:
+        return encode_int8(data)
+    elif encoding == 6:
+        return encode_int16(data)
+    elif encoding == 7:
+        return encode_int32(data)
+
+
+def parse(encoding: int, data):
+    if encoding == 0:
+        return parse_bool(data)
+    elif encoding == 1:
+        return parse_float(data)
+    elif encoding == 2:
+        return parse_uint8(data)
+    elif encoding == 3:
+        return parse_uint16(data)
+    elif encoding == 4:
+        return parse_uint32(data)
+    elif encoding == 5:
+        return parse_int8(data)
+    elif encoding == 6:
+        return parse_int16(data)
+    elif encoding == 7:
+        return parse_int32(data)
+
+
+def encode_var_name(name, value):
+    x = struct.pack(name, value)
+    return x
+
+
+def parse_var_name(name, payload):
+    x = struct.unpack(name, payload)
+    return x[0]
+
+
+def parse_uint8(payload):
+    return parse_var_name("B", payload)
+
+
+def encode_uint8(value):
+    return encode_var_name("B", value)
+
+
+def parse_uint16(payload):
+    return parse_var_name("H", payload)
+
+
+def encode_uint16(value):
+    return encode_var_name("H", value)
+
+
+def parse_uint32(payload):
+    return parse_var_name("I", payload)
+
+
+def encode_uint32(value):
+    return encode_var_name("I", value)
+
+
+def parse_int8(payload):
+    return parse_var_name("b", payload)
+
+
+def encode_int8(value):
+    return encode_var_name("b", value)
+
+
+def parse_int16(payload):
+    return parse_var_name("h", payload)
+
+
+def encode_int16(value):
+    return encode_var_name("h", value)
 
 
 def parse_int32(payload):
-    import struct
-    st = table_to_string(payload)
-    x = struct.unpack("i", st)
-    return x[0]
+    return parse_var_name("i", payload)
+
+
+def encode_int32(value):
+    return encode_var_name("i", value)
 
 
 def parse_bool(payload):
-    import struct
-    st = table_to_string(payload)
-    x = struct.unpack("?", st)
-    return x[0]
+    return parse_var_name("?", payload)
+
+
+def encode_bool(value):
+    return encode_var_name("?", value)
 
 
 def parse_float(payload):
-    import struct
-    st = table_to_string(payload)
-    x = struct.unpack("f", st)
-    return x[0]
+    return parse_var_name("f", payload)
 
 
 def encode_float(value):
-    import struct
-    x = struct.pack("f", value)
-    return string_to_table(x)
+    return encode_var_name("f", value)
 
 
 def parse_null(payload):
