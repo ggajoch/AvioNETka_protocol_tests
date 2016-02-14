@@ -23,7 +23,7 @@ FreeRTOS/FreeRTOS-Plus-Trace/Include/*.h
 find_library(LIBWMM winmm)
 find_library(LIBWINSOCK ws2_32)
 
-set(SOURCE_FILES ${FreeRTOSSrc} ++FreeRTOS.h main.cpp protocol/DataStructs.h protocol/NetworkLayer.h protocol/StackInterfaces.h protocol/useful.h protocol/Commands.h protocol/SystemCommands.h protocol/stackError.h)
+set(SOURCE_FILES ${FreeRTOSSrc} ++FreeRTOS.h main.cpp protocol/DataStructs.h protocol/NetworkLayer.h protocol/StackInterfaces.h protocol/useful.h protocol/Commands.h protocol/SystemCommands.h protocol/stackError.h protocol/TCPMock.h)
 
 include_directories(FreeRTOS/include FreeRTOS/portable FreeRTOS/FreeRTOS-Plus-Trace/Include .)
 add_executable(protocol ${SOURCE_FILES})

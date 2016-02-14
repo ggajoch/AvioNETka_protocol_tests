@@ -51,6 +51,7 @@ public:
         if( res != STACK_OK ) {
             return res;
         }
+        printf("Testing PING...\n");
         if( semaphore.take(1000) ) {
             return STACK_OK;
         } else {
@@ -60,11 +61,13 @@ public:
 protected:
     virtual void callback(const dataTypeUnion &data) {
         if(data.bytes[0] == 1) {
+            printf("Answering to PING!\n");
             NETDataStruct dataout(this->id);
             dataout.append((uint8_t)2);
             this->passDown(dataout);
         } else if(data.bytes[0] == 2) {
             semaphore.give();
+            printf("Got PONG!\n");
         }
     }
 };
