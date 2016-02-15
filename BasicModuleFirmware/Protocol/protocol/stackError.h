@@ -10,6 +10,7 @@ enum StackError {
     STACK_OK = 0,
     STACK_TIMEOUT = 1,
     STACK_NO_CONNECTION = 2,
-    STACK_PHY_ERROR = 3
+    STACK_PHY_ERROR = 3,
+    STACK_SUBSCRIBE = 4
 };
 #endif //PROTOCOL_STACKERROR_H

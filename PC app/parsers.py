@@ -3,21 +3,21 @@ import struct
 
 def encode(encoding: int, data):
     if encoding == 0:
-        return encode_bool(data)
+        return encode_bool(int(data))
     elif encoding == 1:
-        return encode_float(data)
+        return encode_float(float(data))
     elif encoding == 2:
-        return encode_uint8(data)
+        return encode_uint8(int(data))
     elif encoding == 3:
-        return encode_uint16(data)
+        return encode_uint16(int(data))
     elif encoding == 4:
-        return encode_uint32(data)
+        return encode_uint32(int(data))
     elif encoding == 5:
-        return encode_int8(data)
+        return encode_int8(int(data))
     elif encoding == 6:
-        return encode_int16(data)
+        return encode_int16(int(data))
     elif encoding == 7:
-        return encode_int32(data)
+        return encode_int32(int(data))
 
 
 def parse(encoding: int, data):

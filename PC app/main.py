@@ -8,11 +8,15 @@ net = Network(phy)
 phy.register_upper_layer(net)
 
 
+
+sim.sync()
+
+
 time.sleep(5)
-i=0
-while True:
-    sim.set(1, i)
-    i += 1
+# i=0
+# while True:
+#     sim.set(1, i)
+#     i += 1
     #time.sleep(3)
 
 # x = Module(net, 1)

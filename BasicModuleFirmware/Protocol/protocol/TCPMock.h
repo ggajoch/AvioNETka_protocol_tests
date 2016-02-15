@@ -97,7 +97,7 @@ int initSocket() {
 using namespace FreeRTOS;
 
 
-Queue<PHYDataStruct> TxQueue(100);
+Queue<PHYDataStruct> TxQueue(100), RxQueue(100);
 
 class TCP_PHYLayer : public PHYInterface {
 public:
@@ -109,6 +109,7 @@ public:
 
     virtual StackError passDown(const PHYDataStruct & data) {
         TxQueue.sendToBack(data);
+        return STACK_OK;
     }
 };
 
@@ -116,21 +117,49 @@ TCP_PHYLayer phy;
 
 void TCPReceiverTask(void *p) {
     char recvBuf[100];
+    uint8_t cmdBuf[100];
+    int iter = 0;
     while(1) {
         int res = recv(SendingSocket, recvBuf, 100, 0);
         if( res > 0 ) {
             recvBuf[res] = 0;
             printf("[TCP] received: ");
             print_byte_table(recvBuf, res);
-            PHYDataStruct data;
-            memcpy(data.data, recvBuf+2, res-2);
-            data.len = res-2;
-            phy.mockData(data);
+
+            int i = 0;
+            while(i+1 < res) {
+                uint8_t now = (recvBuf[i] << 4) | recvBuf[i+1];
+                cmdBuf[iter++] = now;
+                i += 2;
+                uint8_t n = recvBuf[i];
+//                printf("(%d %d)\n",i,n);
+                if (n == 0xFF) {
+                    printf("[TCP] full frame: ");
+                    print_byte_table(cmdBuf, iter);
+
+                    PHYDataStruct data;
+                    memcpy(data.data, cmdBuf+2, iter-2);
+                    data.len = iter-2;
+//                    phy.mockData(data);
+                    RxQueue.sendToBack(data);
+
+                    iter = 0;
+                    i++;
+                }
+            }
+            printf("[TCP] FIN\n");
         } else {
             printf("connection failed %d\n", res);
             vTaskDelay(1000);
         }
-        vTaskDelay(1);
+    }
+}
+
+void TCPReceiverQueue(void *p) {
+    while(1) {
+        PHYDataStruct data;
+        RxQueue.receive(&data, portMAX_DELAY);
+        phy.mockData(data);
     }
 }
 
@@ -139,6 +168,7 @@ void TCPSender(void * p) {
         PHYDataStruct data;
         TxQueue.receive(&data, portMAX_DELAY);
         static uint8_t buffer[100];
+        static uint8_t bufferOut[100];
         uint16_t address = 0xAAAA;
         memcpy(buffer, &address, 2);
         memcpy(buffer + 2, data.data, data.len);
@@ -146,13 +176,22 @@ void TCPSender(void * p) {
         printf("[TCP] sending data: ");
         print_byte_table(buffer, data.len + 2);
 
-        BytesSent = send(SendingSocket, (char *) buffer, data.len + 2, 0);
+        int len = data.len+2;
+        int iter = 0;
+        for(uint8_t i = 0; i < len; ++i) {
+            bufferOut[iter++] = (buffer[i] & 0xF0) >> 4;
+            bufferOut[iter++] = buffer[i] & 0x0F;
+        }
+        bufferOut[iter++] = 0xFF;
+
+        BytesSent = send(SendingSocket, (char *) bufferOut, iter, 0);
         context::delay(1);
     }
 }
 
 void TCP_SETUP() {
     Task::create(TCPReceiverTask, "rx", 1000, 2);
-    Task::create(TCPSender, "tx", 1000, 3);
+    Task::create(TCPSender, "tx", 1000, 2);
+    Task::create(TCPReceiverQueue, "tx", 1000, 2);
 }
 #endif //PROTOCOL_TCPMOCK_H

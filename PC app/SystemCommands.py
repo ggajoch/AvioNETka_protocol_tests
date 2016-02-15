@@ -10,7 +10,10 @@ class ACK:
         self.module = module
 
     def pass_up(self, data: str):
-        self.module.semACK.release()
+        try:
+            self.module.semACK.release()
+        except:
+            pass
 
     def send(self):
         data = DataPoint(self.id, b"")

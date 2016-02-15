@@ -27,6 +27,7 @@ class TCP(PHYLayer):
         s.listen(1)
 
         self.conn, addr = s.accept()
+        self.read = b""
 
         t = Timer(0.1, self.receiver)
         t.start()
@@ -37,25 +38,42 @@ class TCP(PHYLayer):
         out += data.value
 
         print("[TCP] sending data: ", out)
-        self.conn.send(out)
-        import time
-        time.sleep(0.01)
+        string = b""
+        for byte in out:
+            string += parsers.encode_uint8((byte & 0xF0) >> 4)
+            string += parsers.encode_uint8(byte & 0x0F)
+        string += b"\xff"
+        self.conn.send(string)
 
     def receiver(self):
-        while 1:
-            try:
-                bytes_array = self.conn.recv(1024)
-            except ConnectionResetError:
-                print("Connection closed.")
-                import sys
-                sys.exit(0)
-            if not bytes_array:
-                print("[TCP] ERROR!")
+        try:
+            bytes_array = self.conn.recv(1024)
+        except ConnectionResetError:
+            print("Connection closed.")
+            import sys
+            sys.exit(0)
+        if not bytes_array:
+            print("[TCP] ERROR!")
 
-            print("[TCP] received bytes_array: ", bytes_array)
+        print("[TCP] received bytes_array: ", bytes_array)
 
-            import parsers
-            address = parsers.parse_uint16(bytes_array[0:2])
-            data = NetworkDataPoint(address, bytes_array[2:])
-            if self.net:
-                self.net.pass_up(data)
+        import parsers
+
+        i = 0
+
+        t = Timer(0.1, self.receiver)
+        t.start()
+
+        while i < len(bytes_array):
+            self.read += parsers.encode_uint8((bytes_array[i] << 4) | bytes_array[i+1])
+            # print(self.read)
+            i += 2
+            if bytes_array[i] == 0xFF:
+                print("full frame:", self.read)
+                i += 1
+                address = parsers.parse_uint16(self.read[0:2])
+                data = NetworkDataPoint(address, self.read[2:])
+                self.read = b""
+                if self.net:
+                    self.net.pass_up(data)
+

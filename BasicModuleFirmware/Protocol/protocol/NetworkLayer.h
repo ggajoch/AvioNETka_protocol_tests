@@ -48,6 +48,8 @@ private:
 
 public:
 
+    FreeRTOS::Semaphore subscribeSemaphore;
+
     virtual StackError stackState() {
         return stackState_;
     }
@@ -74,6 +76,8 @@ public:
         descriptorTable[Ping.id] = &Ping;
         SendSubscriptions.net = this;
         descriptorTable[SendSubscriptions.id] = &SendSubscriptions;
+
+        subscribeSemaphore.take(0);
     }
 
     void testConnection() {
@@ -129,7 +133,11 @@ public:
         ackSemaphore.give();
     }
 
-    virtual StackError sendSubscriptions() {
+    virtual StackError markSubscriptions() {
+        this->subscribeSemaphore.give();
+    }
+
+    virtual StackError subscribe() {
         for(uint8_t i = 0; i < dataTableLen; ++i) {
             RegisterCommand.send(*dataTable[i]);
         }

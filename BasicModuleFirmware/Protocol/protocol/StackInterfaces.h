@@ -27,7 +27,7 @@ public:
     virtual StackError passDown(const NETDataStruct & data) = 0;
     virtual StackError passDownWithACK(const NETDataStruct & data) = 0;
 
-    virtual StackError sendSubscriptions() = 0;
+    virtual StackError markSubscriptions() = 0;
     virtual void receivedACK() = 0;
 
     void registerLowerLayer(PHYInterface * phyInterface) {

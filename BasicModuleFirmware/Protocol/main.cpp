@@ -23,49 +23,37 @@ void StackPoll(void *p) {
     while(net == 0) {}
     while(1) {
         net->testConnection();
-        vTaskDelay(100000);
+        vTaskDelay(2000);
     }
 }
-//class FSXLayer : public FSXInterface {
-//    NETInterface * netInterface;
-//public:
-//    void registerLowerLayer(NETInterface * netInterface) {
-//        this->netInterface = netInterface;
-//    }
-//    virtual void passUp(const NETDataStruct & data) {
-//        printf("[FSX] Received: cmd = %d\n", data.command);
-//        print_byte_table(data.data, data.len);
-//    }
-//    void mock(uint8_t command, uint32_t val) {
-//        printf("[FSX] Sending: %d -> %d\n", command, val);
-//        NETDataStruct netVal(command);
-//        netVal.append(val);
-//        this->netInterface->passDown(netVal);
-//    }
-//};
 
 void ret(float x) {
     printf("Got value %f\n",x);
 }
 
 void starter(void * p) {
-    TypedDataDescriptor<float> fsx(1, true,  ret);
+    TypedDataDescriptor<float> fsx(1, false,  ret);
     DataDescriptor * tab[] = {&fsx};
     NetworkLayer network(&phy, tab, 1);
     net = &network;
 
-    while( net->stackState() != STACK_OK ) {
+    printf("waiting for subscription packet\n");
+    net->subscribeSemaphore.take(portMAX_DELAY);
+    printf("sending subscriptions\n");
+    net->subscribe();
+
+    while (net->stackState() != STACK_OK) {
         vTaskDelay(100);
     }
-//    net->sendSubscriptions();
-//    fsx.send(1.0);
-
-    vTaskDelay(10000);
+    while(1) {
+//        for(float i = 0; i < 100; i += 1) {
+//            fsx.send(i);
+//            vTaskDelay(10);
+//        }
+        vTaskDelay(10000);
+    }
 
     vTaskEndScheduler();
-    while(1) {
-        context::delay(portMAX_DELAY);
-    }
 }
 
 

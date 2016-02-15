@@ -44,6 +44,7 @@ public:
         semaphore.give();
     }
     StackError send() {
+        printf("Testing PING...\n");
         NETDataStruct data(this->id);
         data.append((uint8_t)1);
         semaphore.take(0);
@@ -51,7 +52,6 @@ public:
         if( res != STACK_OK ) {
             return res;
         }
-        printf("Testing PING...\n");
         if( semaphore.take(1000) ) {
             return STACK_OK;
         } else {
@@ -81,7 +81,7 @@ public:
     }
 protected:
     virtual void callback(const dataTypeUnion &data) {
-        net->sendSubscriptions();
+        net->markSubscriptions();
     }
 };
 
