@@ -32,7 +32,7 @@ void ret(float x) {
 }
 
 void starter(void * p) {
-    TypedDataDescriptor<float> fsx(1, false,  ret);
+    TypedDataDescriptor<float> fsx(1, true,  ret);
     DataDescriptor * tab[] = {&fsx};
     NetworkLayer network(&phy, tab, 1);
     net = &network;
